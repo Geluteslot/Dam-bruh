@@ -78,7 +78,21 @@ export default function Landing() {
         setTotalWinnings(1000);
         return;
       }
-      const inc = 400 + Math.floor(Math.random() * 680);
+      const roll = Math.random();
+      let inc: number;
+      if (roll < 0.50) {
+        // Kecil: 200 – 900
+        inc = 200 + Math.floor(Math.random() * 700);
+      } else if (roll < 0.82) {
+        // Sedang: 2.000 – 9.000
+        inc = 2000 + Math.floor(Math.random() * 7000);
+      } else if (roll < 0.96) {
+        // Besar: 20.000 – 80.000
+        inc = 20000 + Math.floor(Math.random() * 60000);
+      } else {
+        // Sangat besar (jackpot): 150.000 – 600.000
+        inc = 150000 + Math.floor(Math.random() * 450000);
+      }
       setTotalWinnings((p) => p + inc);
     }, 5000);
     return () => clearInterval(id);
