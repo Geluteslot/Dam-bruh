@@ -3,7 +3,7 @@ import SnakeCanvas from "@/components/SnakeCanvas";
 import SnakePreview from "@/components/SnakePreview";
 import { SNAKE_COLORS, DEFAULT_COLOR_ID } from "@/lib/snakeColors";
 
-const SERVERS = ["1$", "5%", "20$"];
+const SERVERS = ["2rb", "5rb", "10rb", "15rb", "30rb", "50rb"];
 
 // ---- Gold palette constants ----
 const GOLD      = "#fbbf24";
