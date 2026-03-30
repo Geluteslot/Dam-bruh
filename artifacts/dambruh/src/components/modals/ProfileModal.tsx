@@ -106,15 +106,25 @@ export default function ProfileModal({ onClose, onHistory }: Props) {
         </button>
 
         {/* Logout */}
-        <button
-          onClick={() => { logout(); onClose(); }}
-          className="w-full py-3 rounded-xl font-bold text-sm tracking-wide transition-all duration-200"
-          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.15)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.08)"; }}
-        >
-          Keluar
-        </button>
+        <div className="rounded-xl p-3 mt-1" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.18)" }}>
+          <p className="text-xs uppercase tracking-widest font-semibold mb-2.5 text-center" style={{ color: "rgba(239,68,68,0.5)" }}>
+            Keluar dari Akun
+          </p>
+          <button
+            onClick={() => { logout(); onClose(); }}
+            className="w-full py-3 rounded-xl font-black text-sm tracking-wide flex items-center justify-center gap-2 transition-all duration-200"
+            style={{ background: "rgba(239,68,68,0.12)", border: "1.5px solid rgba(239,68,68,0.4)", color: "#f87171", boxShadow: "0 0 12px rgba(239,68,68,0.1)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.22)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 0 20px rgba(239,68,68,0.25)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.12)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 0 12px rgba(239,68,68,0.1)"; }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Logout
+          </button>
+        </div>
       </ModalBox>
     </Overlay>
   );
