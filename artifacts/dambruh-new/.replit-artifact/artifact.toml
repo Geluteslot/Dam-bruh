@@ -1,6 +1,6 @@
 kind = "web"
-previewPath = "/"
-title = "Dambruh"
+previewPath = "/dambruh-new/"
+title = "Dambruh New"
 version = "1.0.0"
 id = "artifacts/dambruh-new"
 router = "path"
