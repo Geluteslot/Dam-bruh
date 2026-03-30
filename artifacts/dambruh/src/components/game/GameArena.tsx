@@ -25,6 +25,7 @@ interface GState {
   zoneR: number; elapsed: number;
   status: "playing" | "win" | "lose";
   winEarnings: number;
+  loseReason: string;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -60,20 +61,18 @@ function mkSnake(id: string, name: string, x: number, y: number, a: number, colo
 function initState(username: string, bet: number, _saldo: number, color: string): GState {
   const snakes: Snake[] = [];
   const pa = Math.random() * Math.PI * 2;
-  // Player starts in-game with exactly their bet amount as saldo
   snakes.push(mkSnake("player", username, ZC.x + Math.cos(pa)*120, ZC.y + Math.sin(pa)*120, pa + Math.PI, color, bet, bet, true));
   for (let i = 0; i < BOT_NAMES.length; i++) {
     const a = (i / BOT_NAMES.length) * Math.PI * 2;
     const r = 250 + Math.random() * 400;
     snakes.push(mkSnake(`b${i}`, BOT_NAMES[i], ZC.x + Math.cos(a)*r, ZC.y + Math.sin(a)*r, a + Math.PI + (Math.random()-0.5)*0.8, BOT_COLORS[i], bet, bet*(4 + Math.floor(Math.random()*16)), false));
   }
-  return { snakes, bubbles: [], floats: [], zoneR: ZONE_START, elapsed: 0, status: "playing", winEarnings: 0 };
+  return { snakes, bubbles: [], floats: [], zoneR: ZONE_START, elapsed: 0, status: "playing", winEarnings: 0, loseReason: "" };
 }
 
 // ── Kill + bubble drop ────────────────────────────────────────────────────────
 function killSnake(s: Snake, state: GState) {
   s.alive = false;
-  // Drop 80% of bet as bubbles, each rounded to nearest 500
   const totalDrop = Math.max(1000, Math.round(s.betAmount * 0.8 / 1000) * 1000);
   const cnt = Math.max(3, Math.min(10, Math.floor(totalDrop / 1000)));
   const rawPerBubble = totalDrop / cnt;
@@ -131,11 +130,14 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
     }
     if (dist(s.pos[0], ZC) > state.zoneR) {
       s.zoneWarning += dt;
-      if (s.zoneWarning >= 1800) killSnake(s, state);
+      if (s.zoneWarning >= 1800) {
+        if (s.isPlayer) state.loseReason = "Kamu terlambat — zona menyempitmu! Harus lebih cepat kembali ke tengah.";
+        killSnake(s, state);
+      }
     } else { s.zoneWarning = 0; }
   }
 
-  // Win circle — only fills when cashout held + not boosting + no enemy near
+  // Win circle
   if (player) {
     const enemyNear = state.snakes.some((s) => !s.isPlayer && s.alive && dist(s.pos[0], player.pos[0]) < ENEMY_R);
     if (!cashoutHeld || boost || enemyNear) { player.winProgress = 0; player.winTimer = 0; }
@@ -152,9 +154,15 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
     const ph = player.pos[0];
     for (const bot of state.snakes) {
       if (!bot.alive || bot.isPlayer) continue;
-      if (dist(ph, bot.pos[0]) < SR*1.8) { killSnake(player, state); break; }
+      if (dist(ph, bot.pos[0]) < SR*1.8) {
+        state.loseReason = "Kamu bertabrakan langsung dengan musuh! Kurang waspada.";
+        killSnake(player, state); break;
+      }
       for (let i = 3; i < bot.pos.length; i++) {
-        if (dist(ph, bot.pos[i]) < SR*1.4) { killSnake(player, state); break; }
+        if (dist(ph, bot.pos[i]) < SR*1.4) {
+          state.loseReason = "Kamu masuk ke badan musuh — salah posisi!";
+          killSnake(player, state); break;
+        }
       }
       if (!player.alive) break;
     }
@@ -219,14 +227,12 @@ function render(canvas: HTMLCanvasElement, state: GState) {
 
   ctx.fillStyle = "#080400"; ctx.fillRect(0, 0, W, H);
 
-  // Grid
   ctx.strokeStyle = "rgba(251,191,36,0.04)"; ctx.lineWidth = 1;
   const gs = 60*scale;
   const ox = ((-camX*scale)%gs+gs)%gs, oy = ((-camY*scale)%gs+gs)%gs;
   for (let x = ox-gs; x < W+gs; x += gs) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for (let y = oy-gs; y < H+gs; y += gs) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
-  // Zone
   const zsx = sx(ZC.x), zsy = sy(ZC.y), zsr = state.zoneR*scale;
   ctx.save(); ctx.shadowBlur = 20*scale; ctx.shadowColor = "rgba(251,191,36,0.55)";
   ctx.strokeStyle = "rgba(251,191,36,0.65)"; ctx.lineWidth = 2.5;
@@ -235,7 +241,6 @@ function render(canvas: HTMLCanvasElement, state: GState) {
   ctx.arc(zsx, zsy, zsr, 0, Math.PI*2, true);
   ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fill("evenodd"); ctx.restore();
 
-  // Bubbles
   for (const b of state.bubbles) {
     const bx = sx(b.pos.x), by = sy(b.pos.y), br = b.r*scale;
     const alpha = Math.min(1, b.life/(b.maxLife*0.3));
@@ -250,7 +255,6 @@ function render(canvas: HTMLCanvasElement, state: GState) {
     }
   }
 
-  // Snakes
   for (const s of state.snakes) {
     if (!s.alive || s.pos.length < 2) continue;
     const r = SR*scale;
@@ -264,14 +268,12 @@ function render(canvas: HTMLCanvasElement, state: GState) {
     ctx.save(); ctx.shadowBlur = 16*scale; ctx.shadowColor = s.color;
     ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(hx, hy, r*1.1, 0, Math.PI*2); ctx.fill(); ctx.restore();
 
-    // Eyes
     for (const eyeA of [s.angle+0.5, s.angle-0.5]) {
       const ex = hx + Math.cos(eyeA)*r*0.62, ey = hy + Math.sin(eyeA)*r*0.62;
       ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ex, ey, r*0.34, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(ex+Math.cos(s.angle)*r*0.14, ey+Math.sin(s.angle)*r*0.14, r*0.2, 0, Math.PI*2); ctx.fill();
     }
 
-    // Saldo glass box above head
     const boxY = hy - r*3.2;
     const saldoStr = s.saldo >= 1000000 ? `Rp${(s.saldo/1000000).toFixed(1)}jt` : s.saldo >= 1000 ? `Rp${(s.saldo/1000).toFixed(0)}rb` : `Rp${s.saldo}`;
     const nameStr = s.name;
@@ -279,32 +281,27 @@ function render(canvas: HTMLCanvasElement, state: GState) {
     ctx.font = `bold ${fontSize}px Inter,sans-serif`;
     const tw = Math.max(ctx.measureText(saldoStr).width, ctx.measureText(nameStr).width);
     const bw = tw + 18*scale, bh = 28*scale, bx2 = hx - bw/2, by2 = boxY - bh/2;
-    // glass background
     ctx.save();
     ctx.globalAlpha = 0.82;
     ctx.fillStyle = "rgba(13,9,0,0.7)"; roundRect(ctx, bx2, by2, bw, bh, 6*scale); ctx.fill();
     ctx.strokeStyle = `rgba(251,191,36,${s.isPlayer ? 0.5 : 0.2})`; ctx.lineWidth = s.isPlayer ? 1.2 : 0.7;
     roundRect(ctx, bx2, by2, bw, bh, 6*scale); ctx.stroke();
     ctx.globalAlpha = 1;
-    // Name
     ctx.font = `${fontSize*0.82}px Inter,sans-serif`;
     ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(nameStr, hx, by2 + bh*0.32);
-    // Saldo
     ctx.font = `bold ${fontSize}px Inter,sans-serif`;
     ctx.fillStyle = s.isPlayer ? GOLD : "rgba(255,255,255,0.7)";
     if (s.isPlayer) { ctx.shadowBlur = 8*scale; ctx.shadowColor = GOLD; }
     ctx.fillText(saldoStr, hx, by2 + bh*0.72);
     ctx.restore();
 
-    // Win progress circle (player only) — above glass box
     if (s.isPlayer && s.winProgress > 0) {
       const cr = r*2.4, cy2 = boxY - bh/2 - cr - 8*scale;
       ctx.save();
       ctx.beginPath(); ctx.arc(hx, cy2, cr, 0, Math.PI*2);
       ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fill();
       ctx.strokeStyle = "rgba(251,191,36,0.22)"; ctx.lineWidth = 1.5; ctx.stroke();
-      // Glow arc
       const gPct = s.winProgress;
       ctx.shadowBlur = gPct > 0.7 ? 20*scale : 10*scale;
       ctx.shadowColor = gPct > 0.9 ? "#fff" : GOLD;
@@ -318,14 +315,12 @@ function render(canvas: HTMLCanvasElement, state: GState) {
       ctx.restore();
     }
 
-    // Zone warning flash
     if (s.isPlayer && s.zoneWarning > 0) {
       const fl = (Math.sin(Date.now()/120)*0.5+0.5)*0.38;
       ctx.fillStyle = `rgba(239,68,68,${fl})`; ctx.fillRect(0,0,W,H);
     }
   }
 
-  // Float texts
   for (const f of state.floats) {
     const progress = 1 - f.life/f.maxLife;
     const fy = sy(f.wy) - progress*40*scale;
@@ -419,11 +414,13 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
   const joystickRef = useRef<Vec2>({ x: 0, y: 0 });
   const rafRef = useRef(0);
   const lastTRef = useRef(0);
+  const prevWinPctRef = useRef(0);
 
   const [hud, setHud] = useState({ saldo: betAmount, alive: 10, winPct: 0, status: "playing" as GState["status"] });
   const [boosting, setBoosting] = useState(false);
   const [cashoutHeld, setCashoutHeld] = useState(false);
   const [winFlash, setWinFlash] = useState(false);
+  const [nearMiss, setNearMiss] = useState(false);
 
   const setBoost = useCallback((v: boolean) => { boostRef.current = v; setBoosting(v); }, []);
   const setCashout = useCallback((v: boolean) => { cashoutRef.current = v; setCashoutHeld(v); }, []);
@@ -457,7 +454,16 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
         const p = stateRef.current.snakes.find((s) => s.isPlayer);
         const alive = stateRef.current.snakes.filter((s) => s.alive).length;
         const st = stateRef.current.status;
-        setHud({ saldo: p?.saldo ?? 0, alive, winPct: Math.round((p?.winProgress ?? 0)*100), status: st });
+        const newWinPct = Math.round((p?.winProgress ?? 0)*100);
+
+        // Near-miss detection: winPct was high (>75%) and now reset to 0
+        if (prevWinPctRef.current >= 75 && newWinPct === 0 && st === "playing") {
+          setNearMiss(true);
+          setTimeout(() => setNearMiss(false), 2500);
+        }
+        prevWinPctRef.current = newWinPct;
+
+        setHud({ saldo: p?.saldo ?? 0, alive, winPct: newWinPct, status: st });
         if (st !== "playing") { cancelAnimationFrame(rafRef.current); return; }
       }
       rafRef.current = requestAnimationFrame(loop);
@@ -471,9 +477,8 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
     };
   }, []);
 
-  // Gold flash on win
   useEffect(() => {
-    if (hud.status === "win") { setWinFlash(true); setTimeout(() => setWinFlash(false), 800); }
+    if (hud.status === "win") { setWinFlash(true); setTimeout(() => setWinFlash(false), 1200); }
   }, [hud.status]);
 
   const GG = "rgba(251,191,36,";
@@ -482,9 +487,35 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
     <div className="fixed inset-0" style={{ zIndex: 50, background: "#080400" }}>
       <canvas ref={canvasRef} className="absolute inset-0" style={{ touchAction: "none" }} />
 
-      {/* Gold flash overlay */}
-      {winFlash && <div className="absolute inset-0 pointer-events-none" style={{ background: `linear-gradient(135deg,${GG}0.22),${GG}0.08))`, zIndex: 14, animation: "winFlash 0.8s ease-out forwards" }} />}
-      <style>{`@keyframes winFlash{0%{opacity:1}100%{opacity:0}}`}</style>
+      <style>{`
+        @keyframes winFlash{0%{opacity:1}100%{opacity:0}}
+        @keyframes nearMissIn{0%{opacity:0;transform:translateX(-50%) scale(0.8)}30%{opacity:1;transform:translateX(-50%) scale(1.05)}100%{opacity:0;transform:translateX(-50%) translateY(-20px) scale(0.95)}}
+        @keyframes winPulse{0%,100%{transform:scale(1);text-shadow:0 0 30px rgba(251,191,36,0.8)}50%{transform:scale(1.04);text-shadow:0 0 60px rgba(251,191,36,1),0 0 100px rgba(251,191,36,0.6)}}
+        @keyframes winGlow{0%,100%{box-shadow:0 0 60px rgba(251,191,36,0.3)}50%{box-shadow:0 0 120px rgba(251,191,36,0.6),0 0 200px rgba(251,191,36,0.2)}}
+        @keyframes playAgainPulse{0%,100%{box-shadow:0 0 20px rgba(251,191,36,0.4)}50%{box-shadow:0 0 40px rgba(251,191,36,0.8),0 0 60px rgba(251,191,36,0.3)}}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+      `}</style>
+
+      {/* Gold flash overlay on win */}
+      {winFlash && <div className="absolute inset-0 pointer-events-none" style={{ background: `linear-gradient(135deg,${GG}0.3),${GG}0.12))`, zIndex: 14, animation: "winFlash 1.2s ease-out forwards" }} />}
+
+      {/* Near miss overlay */}
+      {nearMiss && (
+        <div
+          className="absolute pointer-events-none font-black text-center"
+          style={{
+            top: "28%", left: "50%",
+            zIndex: 15,
+            animation: "nearMissIn 2.5s ease-out forwards",
+            fontSize: "1.4rem",
+            color: "#fbbf24",
+            textShadow: "0 0 20px rgba(251,191,36,0.9), 0 2px 8px rgba(0,0,0,0.8)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Dikit lagi! 😫
+        </div>
+      )}
 
       {/* HUD top-left */}
       <div className="absolute top-4 left-4 flex flex-col gap-2" style={{ zIndex: 10 }}>
@@ -508,23 +539,20 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
           <div className="rounded-xl px-4 py-2 text-xs font-bold flex items-center gap-2" style={{ background: "rgba(0,0,0,0.75)", border: `1px solid ${GG}${hud.winPct > 80 ? "0.7" : "0.25"})`, color: GOLD, boxShadow: hud.winPct > 80 ? `0 0 18px ${GG}0.45)` : "none" }}>
             <span style={{ color: "#7a6030", fontSize: 9, textTransform: "uppercase" }}>Cashout</span>
             <span style={{ fontSize: 15 }}>{hud.winPct}%</span>
-            {hud.winPct > 80 && <span style={{ fontSize: 10, color: "#fff" }}>Hampir!</span>}
+            {hud.winPct > 80 && <span style={{ fontSize: 10, color: "#fff", animation: "winPulse 0.6s ease-in-out infinite" }}>Hampir! ✨</span>}
           </div>
         </div>
       )}
 
-      {/* Joystick (shown on touch devices) */}
+      {/* Joystick */}
       <Joystick onDir={setJoystick} />
 
       {/* Right side action buttons */}
       <div className="absolute flex flex-col gap-3" style={{ right: 20, bottom: 28, zIndex: 12, alignItems: "center" }}>
-        {/* Hold to Cashout */}
         <button
           className="w-24 h-24 rounded-full flex flex-col items-center justify-center font-black text-xs uppercase tracking-wide select-none"
           style={{
-            background: cashoutHeld
-              ? `radial-gradient(circle,${GG}0.35) 0%,rgba(0,0,0,0.75) 80%)`
-              : "rgba(0,0,0,0.7)",
+            background: cashoutHeld ? `radial-gradient(circle,${GG}0.35) 0%,rgba(0,0,0,0.75) 80%)` : "rgba(0,0,0,0.7)",
             border: `2px solid ${GG}${cashoutHeld ? "0.85" : "0.3"})`,
             color: cashoutHeld ? GOLD : "rgba(251,191,36,0.55)",
             boxShadow: cashoutHeld ? `0 0 28px ${GG}0.6),inset 0 0 16px ${GG}0.12)` : `0 0 10px ${GG}0.12)`,
@@ -542,7 +570,6 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
           <span style={{ fontSize: 9, lineHeight: 1.3, textAlign: "center" }}>Tahan<br />Cashout</span>
         </button>
 
-        {/* Boost */}
         <button
           className="w-16 h-16 rounded-full flex flex-col items-center justify-center font-black text-xs uppercase select-none"
           style={{
@@ -565,7 +592,6 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
         </button>
       </div>
 
-      {/* Cashout hint */}
       {cashoutHeld && !boosting && (
         <div className="absolute font-bold text-xs text-center" style={{ right: 24, bottom: 170, zIndex: 12, color: GOLD, textShadow: `0 0 10px ${GG}0.8)` }}>
           Jangan gerak!
@@ -577,41 +603,120 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
         </div>
       )}
 
-      {/* Win screen */}
       {hud.status === "win" && (
-        <EndScreen won earnings={stateRef.current.winEarnings}
-          onClose={() => onGameEnd({ won: true, earnings: stateRef.current.winEarnings })} />
+        <EndScreen
+          won
+          earnings={stateRef.current.winEarnings}
+          loseReason=""
+          onClose={() => onGameEnd({ won: true, earnings: stateRef.current.winEarnings })}
+        />
       )}
-      {/* Lose screen */}
       {hud.status === "lose" && (
-        <EndScreen won={false} earnings={stateRef.current.snakes.find((s) => s.isPlayer)?.saldo ?? 0}
-          onClose={() => onGameEnd({ won: false, earnings: stateRef.current.snakes.find((s) => s.isPlayer)?.saldo ?? 0 })} />
+        <EndScreen
+          won={false}
+          earnings={stateRef.current.snakes.find((s) => s.isPlayer)?.saldo ?? 0}
+          loseReason={stateRef.current.loseReason}
+          onClose={() => onGameEnd({ won: false, earnings: stateRef.current.snakes.find((s) => s.isPlayer)?.saldo ?? 0 })}
+        />
       )}
     </div>
   );
 }
 
-function EndScreen({ won, earnings, onClose }: { won: boolean; earnings: number; onClose: () => void }) {
+function EndScreen({ won, earnings, loseReason, onClose }: { won: boolean; earnings: number; loseReason: string; onClose: () => void }) {
   const GG = "rgba(251,191,36,";
+  const [showPlayAgain, setShowPlayAgain] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowPlayAgain(true), 1200);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.84)", zIndex: 20, backdropFilter: "blur(10px)" }}>
-      <div className="flex flex-col items-center gap-5 rounded-2xl p-8 text-center"
-        style={{ background: "rgba(13,9,0,0.96)", border: `1.5px solid ${won ? GG+"0.4)" : "rgba(239,68,68,0.38)"}`, boxShadow: won ? `0 0 60px ${GG}0.2)` : "0 0 60px rgba(239,68,68,0.18)", minWidth: 280 }}>
-        <div style={{ fontSize: "3.5rem" }}>{won ? "🏆" : "💀"}</div>
-        <h2 className="font-black text-3xl uppercase tracking-widest" style={{ color: won ? GOLD : "#f87171", textShadow: won ? `0 0 24px ${GG}0.7)` : "0 0 24px rgba(239,68,68,0.7)" }}>
-          {won ? "MENANG!" : "KALAH!"}
-        </h2>
-        <div className="flex flex-col gap-1">
-          <p style={{ color: "#7a6030", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-            {won ? "Total Kemenangan" : "Bubble Terkumpul"}
-          </p>
-          <p className="font-black text-2xl" style={{ color: won ? GOLD : "#f87171" }}>
-            Rp{earnings.toLocaleString("id-ID")}
-          </p>
-        </div>
-        <button onClick={onClose}
-          className="mt-1 px-10 py-3 rounded-xl font-black uppercase tracking-widest text-sm"
-          style={{ background: won ? `linear-gradient(135deg,#d97706,#fbbf24)` : "rgba(239,68,68,0.18)", color: won ? "#1a0e00" : "#f87171", border: won ? "none" : "1px solid rgba(239,68,68,0.4)", boxShadow: won ? `0 0 24px ${GG}0.5)` : "none" }}>
+    <div
+      className="absolute inset-0 flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.88)", zIndex: 20, backdropFilter: "blur(12px)" }}
+    >
+      <div
+        className="flex flex-col items-center gap-5 rounded-2xl p-8 text-center"
+        style={{
+          background: "rgba(13,9,0,0.97)",
+          border: `1.5px solid ${won ? GG+"0.45)" : "rgba(239,68,68,0.4)"}`,
+          animation: won ? "winGlow 2s ease-in-out infinite" : "fadeInUp 0.4s ease-out",
+          minWidth: 290,
+          maxWidth: 340,
+        }}
+      >
+        {won ? (
+          <>
+            {/* WIN MOMENT */}
+            <div style={{ fontSize: "4rem", filter: "drop-shadow(0 0 20px rgba(251,191,36,0.8))" }}>🏆</div>
+            <div>
+              <h2
+                className="font-black text-4xl uppercase tracking-widest"
+                style={{ color: GOLD, animation: "winPulse 1.2s ease-in-out infinite" }}
+              >
+                KAMU MENANG!
+              </h2>
+              <p style={{ color: "#f59e0b", fontSize: 11, marginTop: 4, letterSpacing: "0.15em" }}>LUAR BIASA!</p>
+            </div>
+            <div
+              className="rounded-2xl px-8 py-4 w-full"
+              style={{ background: `${GG}0.1)`, border: `1px solid ${GG}0.3)` }}
+            >
+              <p style={{ color: "#7a6030", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Total Kemenangan</p>
+              <p className="font-black text-3xl" style={{ color: GOLD, textShadow: `0 0 20px ${GG}0.8)` }}>
+                +Rp{earnings.toLocaleString("id-ID")}
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* LOSE WITH REASON */}
+            <div style={{ fontSize: "3.5rem" }}>💀</div>
+            <h2 className="font-black text-3xl uppercase tracking-widest" style={{ color: "#f87171", textShadow: "0 0 24px rgba(239,68,68,0.7)" }}>
+              KALAH!
+            </h2>
+            {loseReason && (
+              <div
+                className="rounded-xl px-4 py-3 w-full"
+                style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}
+              >
+                <p style={{ color: "#7a6030", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 4 }}>Penyebab Kekalahan</p>
+                <p style={{ color: "#fca5a5", fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{loseReason}</p>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <p style={{ color: "#7a6030", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>Bubble Terkumpul</p>
+              <p className="font-black text-2xl" style={{ color: "#f87171" }}>Rp{earnings.toLocaleString("id-ID")}</p>
+            </div>
+          </>
+        )}
+
+        {/* Session Loop: Main Lagi! */}
+        {showPlayAgain && (
+          <button
+            onClick={onClose}
+            className="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-base"
+            style={{
+              background: won
+                ? `linear-gradient(135deg,#d97706,#fbbf24)`
+                : `linear-gradient(135deg,rgba(239,68,68,0.3),rgba(239,68,68,0.15))`,
+              color: won ? "#1a0e00" : "#fca5a5",
+              border: won ? "none" : "1.5px solid rgba(239,68,68,0.5)",
+              animation: "playAgainPulse 1.4s ease-in-out infinite",
+              fontSize: "1rem",
+            }}
+          >
+            {won ? "▶ Main Lagi!" : "🔄 Coba Lagi!"}
+          </button>
+        )}
+
+        <button
+          onClick={onClose}
+          className="text-xs font-semibold"
+          style={{ color: "#7a6030", textDecoration: "underline", textUnderlineOffset: 3 }}
+        >
           Kembali ke Lobby
         </button>
       </div>

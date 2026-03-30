@@ -1,0 +1,161 @@
+Enhance the game system with psychological mechanics to increase engagement, retention, and competitiveness.
+
+IMPORTANT:
+- Use Indonesian language
+- System must feel natural (tidak terlalu manipulatif)
+- Fokus ke pengalaman player yang seru dan menantang
+
+========================
+NEAR WIN SYSTEM (HAMPIR MENANG)
+========================
+
+- Saat player hampir menang:
+
+Contoh:
+- Circle hampir penuh (90–95%)
+- Tinggal sedikit lagi
+
+Kemudian:
+- Tiba-tiba terganggu (musuh mendekat / zona / harus boost)
+
+Efek:
+- Progress reset
+
+Tujuan:
+- Membuat player merasa:
+  "Dikit lagi tadi 😫"
+
+========================
+LOSE WITH REASON
+========================
+
+Saat kalah:
+- Jangan terasa random
+
+Harus terlihat:
+- karena salah sendiri
+- karena kurang cepat
+- karena salah posisi
+
+========================
+WIN MOMENT SYSTEM
+========================
+
+Saat menang:
+
+- Berikan efek besar:
+  - glow gold
+  - animasi kemenangan
+  - suara / visual kuat
+
+- Tampilkan:
+  "KAMU MENANG!"
+
+Tujuan:
+- Memberikan dopamine tinggi
+
+========================
+SMALL REWARD LOOP
+========================
+
+- Player sering dapat reward kecil:
+  +500
+  +1000
+
+- Jarang reward besar
+
+Efek:
+- terus merasa “dapat sesuatu”
+
+========================
+RANK CHASING EFFECT
+========================
+
+- Tampilkan posisi user:
+  contoh:
+  "Kamu di peringkat #12"
+
+- Tampilkan target:
+  "Selisih ke #10 hanya Rp8.000"
+
+Efek:
+- player terdorong naik rank
+
+========================
+DRAMA LEADERBOARD
+========================
+
+- Saat user mendekati top:
+
+Contoh:
+- dari rank 10 → 5
+
+Tambahkan:
+- player lain naik juga
+- user hampir rank 1 tapi disalip
+
+Efek:
+- bikin tegang
+- bikin balik lagi
+
+========================
+SESSION LOOP
+========================
+
+Setelah game selesai:
+
+- Tampilkan:
+  "Main lagi?"
+
+- Tambahkan:
+  - highlight tombol
+  - animasi ringan
+
+Efek:
+- player klik lagi tanpa mikir
+
+========================
+FAKE ACTIVITY SYSTEM
+========================
+
+Tampilkan notifikasi:
+
+- "Rizky menang Rp20.000!" random
+- "Fitri naik ke rank 1!"
+- "Budi cashout!"
+
+Dibuat semuanya random ketika notifikasi muncul mungkin bisa per 3 detik atau 5 detik itu muncul ketika dimenu mau login atau sudah login
+
+Frekuensi:
+- setiap 10–30 detik
+
+========================
+PROGRESSION FEEL
+========================
+
+- Player harus merasa:
+  - berkembang
+  - makin jago
+  - makin dekat menang besar
+
+========================
+VARIASI EMOSI
+========================
+
+Game harus punya:
+- tegang
+- senang
+- hampir menang
+- sedikit frustrasi
+
+Tapi:
+- tidak berlebihan
+
+========================
+TUJUAN SISTEM
+========================
+
+- Membuat player ketagihan
+- Membuat player terus kembali
+- Membuat gameplay terasa hidup
+- Meningkatkan waktu bermain

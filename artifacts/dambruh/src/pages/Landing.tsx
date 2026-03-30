@@ -30,6 +30,22 @@ const GOLD_GLOW = "rgba(251,191,36,";
 type ModalType = "login" | "register" | "forgot" | "profile" | "history" | null;
 type GamePhase = "idle" | "countdown" | "playing";
 
+// ── Fake Activity System ───────────────────────────────────────────────────────
+const FA_NAMES = ["Rizky","Fitri","Budi","Andi","Sari","Dewi","Bayu","Nina","Fajar","Wahyu","Agus","Dian","Reza","Putra","Hadi","Bella","Kevin","Lina","Rama","Zahra"];
+const FA_AMOUNTS = [5000,8000,10000,12000,15000,18000,20000,25000,30000];
+function randomFakeActivity(): string {
+  const name = FA_NAMES[Math.floor(Math.random() * FA_NAMES.length)];
+  const amt = FA_AMOUNTS[Math.floor(Math.random() * FA_AMOUNTS.length)];
+  const type = Math.floor(Math.random() * 5);
+  if (type === 0) return `💰 ${name} menang Rp${amt.toLocaleString("id-ID")}!`;
+  if (type === 1) return `📈 ${name} naik ke rank #${1 + Math.floor(Math.random() * 8)}!`;
+  if (type === 2) return `✅ ${name} cashout Rp${amt.toLocaleString("id-ID")}!`;
+  if (type === 3) return `🎮 ${name} masuk game Rp${[3,5,10,20][Math.floor(Math.random()*4)]}rb!`;
+  return `⚡ ${name} dapat bubble +Rp${[500,1000,2000,3000][Math.floor(Math.random()*4)].toLocaleString("id-ID")}!`;
+}
+interface FakeNotif { id: number; text: string; }
+let _faId = 0;
+
 function useOutsideClick(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
   useEffect(() => {
     const listener = (e: MouseEvent) => {
@@ -50,6 +66,24 @@ export default function Landing() {
   const [modal, setModal]                     = useState<ModalType>(null);
   const [toast, setToast]                     = useState<{ msg: string; type: "win" | "lose" } | null>(null);
   const [gamePhase, setGamePhase]             = useState<GamePhase>("idle");
+  const [fakeNotifs, setFakeNotifs]           = useState<FakeNotif[]>([]);
+  const [showPlayAgain, setShowPlayAgain]     = useState(false);
+
+  // ── Fake activity notifications (every 3-5s while idle) ─────────────────
+  useEffect(() => {
+    if (gamePhase !== "idle") return;
+    const schedule = () => {
+      const delay = 3000 + Math.random() * 2000;
+      return setTimeout(() => {
+        const notif: FakeNotif = { id: ++_faId, text: randomFakeActivity() };
+        setFakeNotifs((prev) => [...prev.slice(-3), notif]);
+        setTimeout(() => setFakeNotifs((prev) => prev.filter((n) => n.id !== notif.id)), 3500);
+        timerId = schedule();
+      }, delay);
+    };
+    let timerId = schedule();
+    return () => clearTimeout(timerId);
+  }, [gamePhase]);
 
   // ── Simulation engine (players, global winnings, leaderboard) ──────────────
   const { activePlayers, rooms, globalWinnings, players: lbPlayers, userRank } = useSimulation(
@@ -102,7 +136,9 @@ export default function Landing() {
       setToast({ msg: "Kamu kalah! Bubble terkumpul: Rp" + earnings.toLocaleString("id-ID"), type: "lose" });
     }
     setGamePhase("idle");
+    setShowPlayAgain(true);
     setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setShowPlayAgain(false), 6000);
   };
 
   if (gamePhase === "countdown" && user) {
@@ -138,6 +174,8 @@ export default function Landing() {
       <style>{`
         @keyframes modalIn { from { opacity: 0; transform: scale(0.93) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes faNotifIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes playAgainJoin { 0%,100% { box-shadow: 0 0 30px rgba(251,191,36,0.5), 0 0 60px rgba(251,191,36,0.2); } 50% { box-shadow: 0 0 60px rgba(251,191,36,0.9), 0 0 120px rgba(251,191,36,0.4); } }
       `}</style>
 
       <SnakeCanvas playerColorId={appliedColorId} />
@@ -154,6 +192,30 @@ export default function Landing() {
           backdropFilter: "blur(1px)",
         }}
       />
+
+      {/* Fake Activity Notifications */}
+      <div className="fixed top-20 right-4 flex flex-col gap-2 pointer-events-none" style={{ zIndex: 40 }}>
+        {fakeNotifs.map((n) => (
+          <div
+            key={n.id}
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold"
+            style={{
+              background: "rgba(13,9,0,0.92)",
+              border: `1px solid ${GOLD_GLOW}0.25)`,
+              color: "#e2c97e",
+              boxShadow: `0 0 16px ${GOLD_GLOW}0.15), 0 4px 16px rgba(0,0,0,0.5)`,
+              animation: "faNotifIn 0.35s cubic-bezier(.22,1,.36,1)",
+              backdropFilter: "blur(8px)",
+              maxWidth: 220,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {n.text}
+          </div>
+        ))}
+      </div>
 
       {/* Toast */}
       {toast && (
@@ -337,9 +399,17 @@ export default function Landing() {
             onClick={handleJoinGame}
             disabled={isInsufficientFunds}
             className={`join-btn mt-7 px-14 py-5 rounded-2xl text-2xl tracking-widest uppercase font-black ${isInsufficientFunds ? "join-btn-disabled" : "join-btn-pulse"}`}
+            style={showPlayAgain && !isInsufficientFunds ? { animation: "playAgainJoin 0.9s ease-in-out infinite" } : undefined}
           >
-            {isInsufficientFunds ? "⚠ SALDO TIDAK CUKUP" : "▶ MASUK GAME"}
+            {isInsufficientFunds ? "⚠ SALDO TIDAK CUKUP" : showPlayAgain ? "🔄 MAIN LAGI?" : "▶ MASUK GAME"}
           </button>
+
+          {/* Session loop hint */}
+          {showPlayAgain && !isInsufficientFunds && (
+            <p className="text-xs font-semibold mt-2" style={{ color: GOLD_DIM, animation: "toastIn 0.4s ease-out" }}>
+              Ayo coba lagi — kali ini pasti menang! 💪
+            </p>
+          )}
 
           {/* Stats */}
           <div className="flex items-center gap-8 md:gap-16 mt-10">

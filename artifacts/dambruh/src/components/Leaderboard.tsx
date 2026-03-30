@@ -43,7 +43,6 @@ export default function Leaderboard({ players, userSaldo, userRank, username }: 
   const userRowRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to user row on mount
   useEffect(() => {
     if (userRowRef.current && scrollRef.current) {
       const container = scrollRef.current;
@@ -52,6 +51,12 @@ export default function Leaderboard({ players, userSaldo, userRank, username }: 
       container.scrollTo({ top: Math.max(0, offset), behavior: "smooth" });
     }
   }, []);
+
+  // Calculate rank chasing: gap to next rank above user
+  const targetRank = Math.max(1, userRank - 1);
+  const targetPlayer = players[targetRank - 1];
+  const rankGap = targetPlayer ? Math.max(0, targetPlayer.saldo - userSaldo) : 0;
+  const showRankChase = username && userRank > 1 && rankGap > 0 && rankGap < 500_000;
 
   return (
     <div className="glass-card rounded-2xl p-5">
@@ -83,24 +88,47 @@ export default function Leaderboard({ players, userSaldo, userRank, username }: 
       {/* User rank banner */}
       {username && (
         <div
-          className="flex items-center justify-between rounded-xl px-4 py-2.5 mb-3"
+          className="rounded-xl px-4 py-2.5 mb-3"
           style={{
             background: `${GOLD_GLOW}0.08)`,
             border: `1.5px solid ${GOLD_GLOW}0.55)`,
             boxShadow: `0 0 16px ${GOLD_GLOW}0.18)`,
           }}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: GOLD_DIM }}>
-              Peringkat kamu
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: GOLD_DIM }}>
+                Peringkat kamu
+              </span>
+            </div>
+            <span
+              className="font-black text-xl"
+              style={{ color: GOLD, textShadow: `0 0 14px ${GOLD_GLOW}0.65)` }}
+            >
+              #{userRank}
             </span>
           </div>
-          <span
-            className="font-black text-xl"
-            style={{ color: GOLD, textShadow: `0 0 14px ${GOLD_GLOW}0.65)` }}
-          >
-            #{userRank}
-          </span>
+
+          {/* Rank chasing effect */}
+          {showRankChase && (
+            <div
+              className="mt-2 pt-2 flex items-center justify-between"
+              style={{ borderTop: `1px solid ${GOLD_GLOW}0.15)` }}
+            >
+              <span style={{ color: "#94a3b8", fontSize: 11 }}>
+                Selisih ke <span style={{ color: GOLD, fontWeight: 700 }}>#{targetRank}</span>
+              </span>
+              <span
+                className="font-black text-sm"
+                style={{
+                  color: rankGap < 50_000 ? "#4ade80" : rankGap < 150_000 ? GOLD : GOLD_DIM,
+                  textShadow: rankGap < 50_000 ? "0 0 10px rgba(74,222,128,0.6)" : `0 0 10px ${GOLD_GLOW}0.5)`,
+                }}
+              >
+                {formatRp(rankGap)} lagi!
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -137,7 +165,6 @@ export default function Leaderboard({ players, userSaldo, userRank, username }: 
               }}
             >
               <div className="flex items-center gap-3">
-                {/* Rank */}
                 <span
                   className="font-black text-sm w-6 text-center shrink-0"
                   style={{ color: rc, textShadow: isTop3 ? `0 0 8px ${rc}99` : "none" }}
@@ -145,7 +172,6 @@ export default function Leaderboard({ players, userSaldo, userRank, username }: 
                   {badge ?? rank}
                 </span>
 
-                {/* Avatar */}
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                   style={{
@@ -159,7 +185,6 @@ export default function Leaderboard({ players, userSaldo, userRank, username }: 
                   {player.name.slice(0, 2).toUpperCase()}
                 </div>
 
-                {/* Name */}
                 <span
                   className="font-semibold text-sm truncate max-w-[120px]"
                   style={{
@@ -177,7 +202,6 @@ export default function Leaderboard({ players, userSaldo, userRank, username }: 
                 </span>
               </div>
 
-              {/* Saldo */}
               <span
                 className="font-black text-sm shrink-0"
                 style={{
