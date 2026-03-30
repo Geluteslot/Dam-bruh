@@ -51,6 +51,10 @@ export default function Landing() {
 
   // ── Active players (125–999, realistic drift) ──────────────────────────────
   const [activePlayers, setActivePlayers] = useState(() => 125 + Math.floor(Math.random() * 875));
+  const activePlayersRef = useRef(activePlayers);
+  useEffect(() => {
+    activePlayersRef.current = activePlayers;
+  }, [activePlayers]);
   useEffect(() => {
     const tick = () => {
       setActivePlayers((prev) => {
@@ -64,11 +68,12 @@ export default function Landing() {
     return () => clearInterval(id);
   }, []);
 
-  // ── Total winnings (starts 1.000 at 00:00, grows every 5s, resets midnight) ──
+  // ── Total winnings — selalu kelipatan 1.000, skala sesuai jumlah pemain aktif ──
   const calcBase = () => {
     const now = new Date();
     const secsToday = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    return 1000 + Math.floor(secsToday / 5) * 740;
+    // Perkiraan akumulasi: ~5.000 per tick per 150 pemain rata-rata
+    return Math.round((1000 + Math.floor(secsToday / 5) * 5000) / 1000) * 1000;
   };
   const [totalWinnings, setTotalWinnings] = useState(calcBase);
   useEffect(() => {
@@ -78,21 +83,24 @@ export default function Landing() {
         setTotalWinnings(1000);
         return;
       }
+      // Skala berdasarkan pemain aktif: 125 pemain = 1x, 999 pemain ≈ 8x
+      const scale = Math.max(1, Math.round(activePlayersRef.current / 125));
       const roll = Math.random();
-      let inc: number;
+      let baseK: number; // satuan ribu
       if (roll < 0.50) {
-        // Kecil: 200 – 900
-        inc = 200 + Math.floor(Math.random() * 700);
+        // Kecil: 3rb – 15rb  ×  scale
+        baseK = 3 + Math.floor(Math.random() * 13);
       } else if (roll < 0.82) {
-        // Sedang: 2.000 – 9.000
-        inc = 2000 + Math.floor(Math.random() * 7000);
+        // Sedang: 20rb – 80rb  ×  scale
+        baseK = 20 + Math.floor(Math.random() * 61);
       } else if (roll < 0.96) {
-        // Besar: 20.000 – 80.000
-        inc = 20000 + Math.floor(Math.random() * 60000);
+        // Besar: 100rb – 500rb  ×  scale
+        baseK = 100 + Math.floor(Math.random() * 401);
       } else {
-        // Sangat besar (jackpot): 150.000 – 600.000
-        inc = 150000 + Math.floor(Math.random() * 450000);
+        // Jackpot: 1jt – 5jt  ×  scale
+        baseK = 1000 + Math.floor(Math.random() * 4001);
       }
+      const inc = baseK * scale * 1000; // selalu kelipatan 1.000
       setTotalWinnings((p) => p + inc);
     }, 5000);
     return () => clearInterval(id);
