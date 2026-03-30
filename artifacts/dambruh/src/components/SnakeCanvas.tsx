@@ -1,13 +1,10 @@
 import { useEffect, useRef } from "react";
 import { SNAKE_COLORS, type SnakeColor } from "@/lib/snakeColors";
 
-interface SnakeSegment {
-  x: number;
-  y: number;
-}
+interface Seg { x: number; y: number; }
 
 interface Snake {
-  segments: SnakeSegment[];
+  segments: Seg[];
   angle: number;
   speed: number;
   turnSpeed: number;
@@ -20,155 +17,218 @@ interface Snake {
   isPlayer: boolean;
 }
 
-interface Food {
-  x: number;
-  y: number;
-  color: string;
-  size: number;
-  floatOffset: number;
-  floatSpeed: number;
+interface Food { x: number; y: number; color: string; size: number; offset: number; speed: number; }
+
+interface Props { playerColorId: string; }
+
+function hexToRgb(hex: string) {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  };
 }
 
-interface Props {
-  playerColorId: string;
-}
-
-function drawSnakeHead(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  angle: number,
-  width: number,
-  color: string,
-  glowColor: string
-) {
-  const r = width * 0.85;
+function drawBody(ctx: CanvasRenderingContext2D, snake: Snake) {
+  if (snake.segments.length < 3) return;
+  const { color, glow } = snake.colorData;
+  const { r: cr, g: cg, b: cb } = hexToRgb(color);
+  const n = snake.segments.length;
+  const maxW = snake.width;
 
   ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
 
-  // Glow halo
-  ctx.shadowBlur = 22;
-  ctx.shadowColor = glowColor;
+  // Draw segment-by-segment from tail to neck for taper + glow
+  for (let i = n - 1; i >= 1; i--) {
+    const t = i / (n - 1); // 0 = head, 1 = tail
+    const alpha = Math.max(0, 1 - t * 0.88);
+    const segW = Math.max(1.5, maxW * (1 - t * 0.75));
+    const shimmer = 1 + 0.06 * Math.sin(i * 0.55);
 
-  // Head body
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, r * 1.1, r, 0, 0, Math.PI * 2);
-  ctx.fill();
+    const seg = snake.segments[i];
+    const prev = snake.segments[i - 1];
 
-  // Slightly lighter face
-  const faceGrad = ctx.createRadialGradient(-r * 0.15, -r * 0.2, 0, 0, 0, r);
-  faceGrad.addColorStop(0, "rgba(255,255,255,0.18)");
-  faceGrad.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = faceGrad;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, r * 1.1, r, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.shadowBlur = 0;
-
-  // ---- Eyes ----
-  const eyeForward = r * 0.35;    // how far forward on the head
-  const eyeSide = r * 0.42;       // lateral offset
-  const eyeballR = r * 0.28;
-  const pupilR = r * 0.15;
-  const pupilOffsetX = r * 0.07;  // pupils look slightly forward
-
-  for (const side of [-1, 1]) {
-    const ex = eyeForward;
-    const ey = side * eyeSide;
-
-    // White sclera
-    ctx.fillStyle = "#ffffff";
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = "rgba(255,255,255,0.6)";
+    // Glow pass
+    ctx.strokeStyle = `rgba(${cr},${cg},${cb},${alpha * 0.18})`;
+    ctx.lineWidth = segW * 3.2;
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = glow;
+    ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.arc(ex, ey, eyeballR, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(seg.x, seg.y);
+    ctx.stroke();
 
-    // Black pupil (offset forward so eyes "look" in direction of movement)
-    ctx.fillStyle = "#111";
+    // Core
+    const rr = Math.min(255, cr * shimmer + 20);
+    const gg = Math.min(255, cg * shimmer + 20);
+    const bb = Math.min(255, cb * shimmer + 20);
+    ctx.strokeStyle = `rgba(${Math.round(rr)},${Math.round(gg)},${Math.round(bb)},${alpha})`;
+    ctx.lineWidth = segW;
     ctx.shadowBlur = 0;
     ctx.beginPath();
-    ctx.arc(ex + pupilOffsetX, ey, pupilR, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(seg.x, seg.y);
+    ctx.stroke();
 
-    // Pupil shine
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.beginPath();
-    ctx.arc(ex + pupilOffsetX + pupilR * 0.3, ey - pupilR * 0.35, pupilR * 0.3, 0, Math.PI * 2);
-    ctx.fill();
+    // Scale arc every 3rd segment
+    if (i % 3 === 0 && segW > 4) {
+      ctx.strokeStyle = `rgba(0,0,0,${0.22 * alpha})`;
+      ctx.lineWidth = 0.7;
+      ctx.shadowBlur = 0;
+      const midX = (prev.x + seg.x) / 2;
+      const midY = (prev.y + seg.y) / 2;
+      ctx.beginPath();
+      ctx.arc(midX, midY, segW * 0.55, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+    }
   }
-
-  // Tiny smile
-  ctx.strokeStyle = "rgba(0,0,0,0.35)";
-  ctx.lineWidth = r * 0.12;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.arc(r * 0.5, 0, r * 0.28, -Math.PI * 0.45, Math.PI * 0.45);
-  ctx.stroke();
 
   ctx.restore();
 }
 
-function drawSnake(
-  ctx: CanvasRenderingContext2D,
-  snake: Snake
-) {
-  if (snake.segments.length < 3) return;
-  const { color, glow: glowColor } = snake.colorData;
-  const w = snake.width;
+function drawHead(ctx: CanvasRenderingContext2D, snake: Snake) {
+  const head = snake.segments[0];
+  const neck = snake.segments[Math.min(3, snake.segments.length - 1)];
+  const angle = Math.atan2(head.y - neck.y, head.x - neck.x);
+  const { color, glow } = snake.colorData;
+  const { r: cr, g: cg, b: cb } = hexToRgb(color);
+  const r = snake.width * 0.95;
 
   ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+  ctx.translate(head.x, head.y);
+  ctx.rotate(angle);
 
-  const total = snake.segments.length;
+  // Glow halo
+  ctx.shadowBlur = 28;
+  ctx.shadowColor = glow;
 
-  // Draw body from tail to neck (so head overlaps)
-  for (let pass = 0; pass < 3; pass++) {
-    const isGlow = pass < 2;
-    const glowBlur = pass === 0 ? 28 : pass === 1 ? 10 : 0;
-    const alpha = pass === 0 ? 0.12 : pass === 1 ? 0.3 : 1;
-    const lineWidthMult = pass === 0 ? 3 : pass === 1 ? 1.7 : 1;
+  // Head shape
+  const headGrad = ctx.createLinearGradient(-r * 0.2, -r, r * 1.3, r);
+  headGrad.addColorStop(0, `rgb(${Math.min(255, cr + 60)},${Math.min(255, cg + 60)},${Math.min(255, cb + 60)})`);
+  headGrad.addColorStop(0.45, color);
+  headGrad.addColorStop(1, `rgb(${Math.max(0, cr - 40)},${Math.max(0, cg - 40)},${Math.max(0, cb - 40)})`);
+  ctx.fillStyle = headGrad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 1.3, r, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
 
+  // Scale texture on head
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 1.3, r, 0, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.strokeStyle = "rgba(0,0,0,0.13)";
+  ctx.lineWidth = 0.7;
+  for (let row = -1; row <= 1; row++) {
+    for (let col = -1; col <= 2; col++) {
+      const sx = col * r * 0.6 + (row % 2 === 0 ? r * 0.3 : 0);
+      const sy = row * r * 0.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r * 0.24, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // Highlight
+  const hl = ctx.createRadialGradient(-r * 0.18, -r * 0.28, 0, 0, 0, r * 1.1);
+  hl.addColorStop(0, "rgba(255,255,255,0.2)");
+  hl.addColorStop(0.5, "rgba(255,255,255,0.04)");
+  hl.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = hl;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 1.3, r, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Nostrils
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.beginPath();
+  ctx.ellipse(r * 0.92, -r * 0.3, r * 0.1, r * 0.07, 0.3, 0, Math.PI * 2);
+  ctx.ellipse(r * 0.92, r * 0.3, r * 0.1, r * 0.07, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  const eyeX = r * 0.4;
+  const eyeY = r * 0.5;
+  const eyeR = r * 0.3;
+  const irisR = r * 0.21;
+  const pupilR = r * 0.12;
+
+  for (const side of [-1, 1]) {
+    const ey = side * eyeY;
+
+    // Socket
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
     ctx.beginPath();
-    ctx.moveTo(snake.segments[0].x, snake.segments[0].y);
+    ctx.arc(eyeX, ey, eyeR * 1.18, 0, Math.PI * 2);
+    ctx.fill();
 
-    for (let i = 1; i < total - 1; i++) {
-      const mx = (snake.segments[i].x + snake.segments[i + 1].x) / 2;
-      const my = (snake.segments[i].y + snake.segments[i + 1].y) / 2;
-      ctx.quadraticCurveTo(snake.segments[i].x, snake.segments[i].y, mx, my);
-    }
-    ctx.lineTo(snake.segments[total - 1].x, snake.segments[total - 1].y);
+    // Sclera
+    const sg = ctx.createRadialGradient(eyeX - eyeR * 0.22, ey - eyeR * 0.22, 0, eyeX, ey, eyeR);
+    sg.addColorStop(0, "#fff");
+    sg.addColorStop(1, "#ddd");
+    ctx.fillStyle = sg;
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = "rgba(255,255,255,0.4)";
+    ctx.beginPath();
+    ctx.arc(eyeX, ey, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
 
-    // Gradient along body — full at head, fades at tail
-    const head = snake.segments[0];
-    const tail = snake.segments[total - 1];
-    const grad = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
-    grad.addColorStop(0, color + Math.round(alpha * 255).toString(16).padStart(2, "0"));
-    grad.addColorStop(0.55, color + Math.round(alpha * 0.55 * 255).toString(16).padStart(2, "0"));
-    grad.addColorStop(1, color + "00");
-    ctx.strokeStyle = grad;
+    // Iris
+    const ig = ctx.createRadialGradient(eyeX + irisR * 0.15, ey - irisR * 0.1, 0, eyeX, ey, irisR);
+    ig.addColorStop(0, "#5cb");
+    ig.addColorStop(0.5, "#27856a");
+    ig.addColorStop(1, "#134033");
+    ctx.fillStyle = ig;
+    ctx.beginPath();
+    ctx.arc(eyeX + r * 0.06, ey, irisR, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Width tapers from head to tail
-    // We do a single gradient stroke; taper is approximated via the gradient alpha
-    ctx.lineWidth = w * lineWidthMult;
+    // Pupil (vertical slit)
+    ctx.fillStyle = "#080808";
+    ctx.save();
+    ctx.translate(eyeX + r * 0.06, ey);
+    ctx.scale(0.42, 1);
+    ctx.beginPath();
+    ctx.arc(0, 0, pupilR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
-    if (isGlow) {
-      ctx.shadowBlur = glowBlur;
-      ctx.shadowColor = glowColor;
-    } else {
-      ctx.shadowBlur = 0;
-    }
-    ctx.stroke();
+    // Shine
+    ctx.fillStyle = "rgba(255,255,255,0.88)";
+    ctx.beginPath();
+    ctx.arc(eyeX + r * 0.06 + pupilR * 0.5, ey - pupilR * 0.5, pupilR * 0.32, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.beginPath();
+    ctx.arc(eyeX + r * 0.06 - pupilR * 0.25, ey + pupilR * 0.45, pupilR * 0.15, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  // Draw cute head on top
-  const head = snake.segments[0];
-  drawSnakeHead(ctx, head.x, head.y, snake.angle, w, color, glowColor);
+  // Tongue
+  ctx.save();
+  ctx.strokeStyle = "#ff1a44";
+  ctx.shadowBlur = 7;
+  ctx.shadowColor = "#ff1a44";
+  ctx.lineWidth = r * 0.09;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(r * 1.2, 0);
+  ctx.lineTo(r * 1.62, 0);
+  ctx.stroke();
+  ctx.lineWidth = r * 0.07;
+  ctx.beginPath();
+  ctx.moveTo(r * 1.62, 0);
+  ctx.lineTo(r * 1.95, -r * 0.24);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(r * 1.62, 0);
+  ctx.lineTo(r * 1.95, r * 0.24);
+  ctx.stroke();
+  ctx.restore();
 
   ctx.restore();
 }
@@ -176,12 +236,9 @@ function drawSnake(
 export default function SnakeCanvas({ playerColorId }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  const playerColorRef = useRef<string>(playerColorId);
+  const playerColorRef = useRef(playerColorId);
 
-  // Keep ref in sync without restarting animation
-  useEffect(() => {
-    playerColorRef.current = playerColorId;
-  }, [playerColorId]);
+  useEffect(() => { playerColorRef.current = playerColorId; }, [playerColorId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -189,130 +246,104 @@ export default function SnakeCanvas({ playerColorId }: Props) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
+    let W = window.innerWidth;
+    let H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
 
     const BG_COLORS = SNAKE_COLORS.filter((c) => c.id !== "neon-green");
 
-    function createSnake(index: number, isPlayer: boolean): Snake {
+    function makeSnake(idx: number, isPlayer: boolean): Snake {
       const colorData = isPlayer
-        ? SNAKE_COLORS.find((c) => c.id === playerColorRef.current) ?? SNAKE_COLORS[0]
-        : BG_COLORS[index % BG_COLORS.length];
-
-      const segCount = 90 + Math.floor(Math.random() * 50);
-      const startX = Math.random() * width;
-      const startY = Math.random() * height;
-      const startAngle = Math.random() * Math.PI * 2;
-      const segments: SnakeSegment[] = Array.from({ length: segCount }, () => ({
-        x: startX,
-        y: startY,
-      }));
+        ? (SNAKE_COLORS.find((c) => c.id === playerColorRef.current) ?? SNAKE_COLORS[0])
+        : BG_COLORS[idx % BG_COLORS.length];
+      const len = 95 + Math.floor(Math.random() * 55);
+      const sx = Math.random() * W;
+      const sy = Math.random() * H;
+      const a = Math.random() * Math.PI * 2;
       return {
-        segments,
-        angle: startAngle,
-        speed: 1.1 + Math.random() * 0.9,
-        turnSpeed: 0.012 + Math.random() * 0.016,
-        targetAngle: startAngle,
-        colorData,
+        segments: Array.from({ length: len }, () => ({ x: sx, y: sy })),
+        angle: a, speed: 1.1 + Math.random() * 0.9,
+        turnSpeed: 0.013 + Math.random() * 0.015,
+        targetAngle: a, colorData,
         width: isPlayer ? 11 : 7 + Math.random() * 6,
-        length: segCount,
-        turnTimer: 0,
-        turnInterval: 90 + Math.floor(Math.random() * 110),
+        length: len, turnTimer: 0,
+        turnInterval: 90 + Math.floor(Math.random() * 120),
         isPlayer,
       };
     }
 
-    const snakeCount = 6;
     const snakes: Snake[] = [
-      createSnake(0, true),
-      ...Array.from({ length: snakeCount }, (_, i) => createSnake(i, false)),
+      makeSnake(0, true),
+      ...Array.from({ length: 6 }, (_, i) => makeSnake(i, false)),
     ];
 
-    const foods: Food[] = Array.from({ length: 55 }, () => {
-      const foodColors = ["#00ff88", "#a855f7", "#3b82f6", "#f59e0b", "#22d3ee", "#f0abfc", "#fb7185"];
-      return {
-        x: Math.random() * width,
-        y: Math.random() * height,
-        color: foodColors[Math.floor(Math.random() * foodColors.length)],
-        size: 2.5 + Math.random() * 3,
-        floatOffset: Math.random() * Math.PI * 2,
-        floatSpeed: 0.025 + Math.random() * 0.025,
-      };
-    });
+    const foodColors = ["#00ff88","#a855f7","#3b82f6","#f59e0b","#22d3ee","#f0abfc","#fb7185"];
+    const foods: Food[] = Array.from({ length: 55 }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      color: foodColors[Math.floor(Math.random() * foodColors.length)],
+      size: 2.5 + Math.random() * 3,
+      offset: Math.random() * Math.PI * 2,
+      speed: 0.025 + Math.random() * 0.025,
+    }));
 
     let frame = 0;
 
-    function angleDiff(a: number, b: number): number {
+    function angleDiff(a: number, b: number) {
       let d = b - a;
       while (d > Math.PI) d -= Math.PI * 2;
       while (d < -Math.PI) d += Math.PI * 2;
       return d;
     }
 
-    function updateSnake(snake: Snake) {
-      // Keep player snake color in sync
-      if (snake.isPlayer) {
+    function update(s: Snake) {
+      if (s.isPlayer) {
         const c = SNAKE_COLORS.find((x) => x.id === playerColorRef.current);
-        if (c) snake.colorData = c;
+        if (c) s.colorData = c;
       }
-
-      snake.turnTimer++;
-      if (snake.turnTimer >= snake.turnInterval) {
-        snake.turnTimer = 0;
-        snake.turnInterval = 90 + Math.floor(Math.random() * 110);
-        snake.targetAngle = Math.random() * Math.PI * 2;
+      s.turnTimer++;
+      if (s.turnTimer >= s.turnInterval) {
+        s.turnTimer = 0;
+        s.turnInterval = 90 + Math.floor(Math.random() * 120);
+        s.targetAngle = Math.random() * Math.PI * 2;
       }
-      const diff = angleDiff(snake.angle, snake.targetAngle);
-      snake.angle += Math.sign(diff) * Math.min(Math.abs(diff), snake.turnSpeed);
-
-      const head = snake.segments[0];
-      const nx = head.x + Math.cos(snake.angle) * snake.speed;
-      const ny = head.y + Math.sin(snake.angle) * snake.speed;
-
-      // Wrap around edges
-      const newHead = { x: nx, y: ny };
-      if (newHead.x < -120) { newHead.x = width + 100; snake.targetAngle = Math.random() * (Math.PI / 2) - Math.PI / 4; }
-      if (newHead.x > width + 120) { newHead.x = -100; snake.targetAngle = Math.PI + (Math.random() * 0.5 - 0.25); }
-      if (newHead.y < -120) { newHead.y = height + 100; snake.targetAngle = Math.PI / 2 + (Math.random() * 0.5 - 0.25); }
-      if (newHead.y > height + 120) { newHead.y = -100; snake.targetAngle = -Math.PI / 2 + (Math.random() * 0.5 - 0.25); }
-
-      snake.segments.unshift(newHead);
-      if (snake.segments.length > snake.length) snake.segments.pop();
+      const d = angleDiff(s.angle, s.targetAngle);
+      s.angle += Math.sign(d) * Math.min(Math.abs(d), s.turnSpeed);
+      const hd = s.segments[0];
+      let nx = hd.x + Math.cos(s.angle) * s.speed;
+      let ny = hd.y + Math.sin(s.angle) * s.speed;
+      if (nx < -130) { nx = W + 110; s.targetAngle = Math.random() * 0.5 - 0.25; }
+      if (nx > W + 130) { nx = -110; s.targetAngle = Math.PI + Math.random() * 0.5 - 0.25; }
+      if (ny < -130) { ny = H + 110; s.targetAngle = Math.PI / 2 + Math.random() * 0.5 - 0.25; }
+      if (ny > H + 130) { ny = -110; s.targetAngle = -Math.PI / 2 + Math.random() * 0.5 - 0.25; }
+      s.segments.unshift({ x: nx, y: ny });
+      if (s.segments.length > s.length) s.segments.pop();
     }
 
-    function drawFood(food: Food) {
-      const yOff = Math.sin(food.floatOffset + frame * food.floatSpeed) * 4;
-      const pulse = 0.7 + 0.3 * Math.sin(food.floatOffset + frame * food.floatSpeed * 1.6);
+    function drawFd(f: Food) {
+      const yo = Math.sin(f.offset + frame * f.speed) * 4;
+      const p = 0.7 + 0.3 * Math.sin(f.offset + frame * f.speed * 1.6);
       ctx.save();
-      ctx.shadowBlur = 14 * pulse;
-      ctx.shadowColor = food.color;
-      ctx.fillStyle = food.color;
-      ctx.globalAlpha = 0.88 * pulse;
+      ctx.shadowBlur = 14 * p;
+      ctx.shadowColor = f.color;
+      ctx.fillStyle = f.color;
+      ctx.globalAlpha = 0.88 * p;
       ctx.beginPath();
-      ctx.arc(food.x, food.y + yOff, food.size * pulse, 0, Math.PI * 2);
+      ctx.arc(f.x, f.y + yo, f.size * p, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#fff";
-      ctx.globalAlpha = 0.6;
-      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.55; ctx.shadowBlur = 0;
       ctx.beginPath();
-      ctx.arc(food.x - food.size * 0.22, food.y + yOff - food.size * 0.22, food.size * 0.28, 0, Math.PI * 2);
+      ctx.arc(f.x - f.size * 0.22, f.y + yo - f.size * 0.22, f.size * 0.28, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
 
     function render() {
-      ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "rgba(5, 3, 15, 0.93)";
-      ctx.fillRect(0, 0, width, height);
-
-      for (const food of foods) drawFood(food);
-      for (const snake of snakes) {
-        updateSnake(snake);
-        drawSnake(ctx, snake);
-      }
-
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = "rgba(5,3,15,0.93)";
+      ctx.fillRect(0, 0, W, H);
+      for (const f of foods) drawFd(f);
+      for (const s of snakes) { update(s); drawBody(ctx, s); drawHead(ctx, s); }
       frame++;
       animRef.current = requestAnimationFrame(render);
     }
@@ -320,23 +351,12 @@ export default function SnakeCanvas({ playerColorId }: Props) {
     render();
 
     const onResize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = W; canvas.height = H;
     };
     window.addEventListener("resize", onResize);
-    return () => {
-      cancelAnimationFrame(animRef.current);
-      window.removeEventListener("resize", onResize);
-    };
+    return () => { cancelAnimationFrame(animRef.current); window.removeEventListener("resize", onResize); };
   }, []);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 w-full h-full"
-      style={{ zIndex: 0 }}
-    />
-  );
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full" style={{ zIndex: 0 }} />;
 }
