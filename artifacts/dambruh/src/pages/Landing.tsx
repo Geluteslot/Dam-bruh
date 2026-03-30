@@ -48,6 +48,49 @@ export default function Landing() {
   const [modal, setModal]                     = useState<ModalType>(null);
   const [toast, setToast]                     = useState<{ msg: string; type: "win" | "lose" } | null>(null);
   const [gamePhase, setGamePhase]             = useState<GamePhase>("idle");
+
+  // ── Active players (125–999, realistic drift) ──────────────────────────────
+  const [activePlayers, setActivePlayers] = useState(() => 125 + Math.floor(Math.random() * 875));
+  useEffect(() => {
+    const tick = () => {
+      setActivePlayers((prev) => {
+        const drift = Math.random() < 0.12
+          ? (Math.random() < 0.5 ? -1 : 1) * (10 + Math.floor(Math.random() * 18))
+          : (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 4));
+        return Math.min(999, Math.max(125, prev + drift));
+      });
+    };
+    const id = setInterval(tick, 2800 + Math.random() * 2400);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── Total winnings (starts 1rb at 00:00, grows ~150/sec, resets midnight) ──
+  const calcBase = () => {
+    const now = new Date();
+    const secsToday = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    return 1000 + secsToday * 148;
+  };
+  const [totalWinnings, setTotalWinnings] = useState(calcBase);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0 && now.getSeconds() === 0) {
+        setTotalWinnings(1000);
+        return;
+      }
+      const inc = 80 + Math.floor(Math.random() * 160);
+      setTotalWinnings((p) => p + inc);
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const fmtWinnings = (v: number) => {
+    if (v >= 1_000_000_000) return `Rp${(v / 1_000_000_000).toFixed(1).replace(".", ",")}M`;
+    if (v >= 1_000_000)     return `Rp${(v / 1_000_000).toFixed(1).replace(".", ",")}jt`;
+    if (v >= 1_000)         return `Rp${Math.round(v / 1000).toLocaleString("id-ID")}rb`;
+    return `Rp${v}`;
+  };
+
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const openPicker   = () => { setPendingColorId(appliedColorId); setShowColorPicker(true); };
@@ -321,7 +364,7 @@ export default function Landing() {
                 Pemain Aktif Saat Ini
               </p>
               <p className="font-black text-4xl md:text-5xl" style={{ color: GOLD, textShadow: `0 0 22px ${GOLD_GLOW}0.55), 0 0 50px ${GOLD_GLOW}0.25)` }}>
-                43
+                {activePlayers}
               </p>
             </div>
             <div className="w-px h-14 rounded-full" style={{ background: `linear-gradient(to bottom, transparent, ${GOLD_GLOW}0.35), transparent)` }} />
@@ -330,7 +373,7 @@ export default function Landing() {
                 Total Kemenangan Global
               </p>
               <p className="font-black text-3xl md:text-4xl" style={{ color: GOLD, textShadow: `0 0 22px ${GOLD_GLOW}0.55), 0 0 50px ${GOLD_GLOW}0.25)` }}>
-                $1,345,521
+                {fmtWinnings(totalWinnings)}
               </p>
             </div>
           </div>
