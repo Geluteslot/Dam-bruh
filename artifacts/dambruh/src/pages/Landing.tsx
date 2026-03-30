@@ -3,7 +3,7 @@ import SnakeCanvas from "@/components/SnakeCanvas";
 import SnakePreview from "@/components/SnakePreview";
 import { SNAKE_COLORS, DEFAULT_COLOR_ID } from "@/lib/snakeColors";
 
-const SERVERS = ["$1", "$5", "$20"];
+const SERVERS = ["1$", "5%", "20$"];
 
 // ---- Gold palette constants ----
 const GOLD      = "#fbbf24";
@@ -23,7 +23,7 @@ function useOutsideClick(ref: React.RefObject<HTMLElement | null>, handler: () =
 }
 
 export default function Landing() {
-  const [selectedServer, setSelectedServer]   = useState("$5");
+  const [selectedServer, setSelectedServer]   = useState("5%");
   const [appliedColorId, setAppliedColorId]   = useState(DEFAULT_COLOR_ID);
   const [pendingColorId, setPendingColorId]   = useState(DEFAULT_COLOR_ID);
   const [showColorPicker, setShowColorPicker] = useState(false);
