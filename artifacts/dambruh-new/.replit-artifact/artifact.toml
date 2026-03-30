@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Dambruh"
+version = "1.0.0"
+id = "artifacts/dambruh-new"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23806
+
+[services.development]
+run = "pnpm --filter @workspace/dambruh-new run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/dambruh-new", "run", "build" ]
+publicDir = "artifacts/dambruh-new/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23806"
+BASE_PATH = "/"
