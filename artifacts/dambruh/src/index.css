@@ -49,42 +49,44 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ===== GOLD LUXURY THEME ===== */
 :root {
-  --button-outline: rgba(0,0,0, .10);
-  --badge-outline: rgba(0,0,0, .05);
+  --button-outline: rgba(0,0,0,.12);
+  --badge-outline: rgba(0,0,0,.06);
   --opaque-button-border-intensity: -8;
-  --elevate-1: rgba(0,0,0, .03);
-  --elevate-2: rgba(0,0,0, .08);
+  --elevate-1: rgba(251,191,36,.04);
+  --elevate-2: rgba(251,191,36,.09);
 
-  --background: 240 15% 4%;
-  --foreground: 210 40% 98%;
-  --border: 240 10% 15%;
-  --card: 240 12% 7%;
-  --card-foreground: 210 40% 98%;
-  --card-border: 240 10% 15%;
-  --sidebar: 240 12% 6%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 240 10% 15%;
-  --sidebar-primary: 270 80% 60%;
-  --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 270 80% 20%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 270 80% 60%;
-  --popover: 240 12% 7%;
-  --popover-foreground: 210 40% 98%;
-  --popover-border: 240 10% 15%;
-  --primary: 270 80% 60%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 240 10% 12%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 240 10% 12%;
-  --muted-foreground: 215 20% 55%;
-  --accent: 155 80% 45%;
-  --accent-foreground: 210 40% 98%;
+  /* Warm dark background — charcoal with amber warmth */
+  --background: 34 30% 5%;
+  --foreground: 45 100% 96%;
+  --border: 38 25% 14%;
+  --card: 34 28% 7%;
+  --card-foreground: 45 100% 96%;
+  --card-border: 38 30% 15%;
+  --sidebar: 34 28% 6%;
+  --sidebar-foreground: 45 100% 96%;
+  --sidebar-border: 38 25% 14%;
+  --sidebar-primary: 42 95% 55%;
+  --sidebar-primary-foreground: 30 20% 8%;
+  --sidebar-accent: 38 80% 20%;
+  --sidebar-accent-foreground: 45 100% 96%;
+  --sidebar-ring: 42 95% 55%;
+  --popover: 34 28% 7%;
+  --popover-foreground: 45 100% 96%;
+  --popover-border: 38 25% 15%;
+  --primary: 42 95% 55%;
+  --primary-foreground: 30 20% 8%;
+  --secondary: 34 20% 12%;
+  --secondary-foreground: 45 100% 96%;
+  --muted: 34 18% 11%;
+  --muted-foreground: 40 15% 52%;
+  --accent: 38 92% 50%;
+  --accent-foreground: 30 20% 8%;
   --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
-  --input: 240 10% 15%;
-  --ring: 270 80% 60%;
+  --destructive-foreground: 45 100% 96%;
+  --input: 38 22% 14%;
+  --ring: 42 95% 55%;
 
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
@@ -101,64 +103,52 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply font-sans antialiased bg-background text-foreground;
-  }
+  * { @apply border-border; }
+  body { @apply font-sans antialiased bg-background text-foreground; }
 }
 
-/* ===== NEON GLOW ANIMATIONS ===== */
-@keyframes neon-pulse-green {
-  0%, 100% { box-shadow: 0 0 5px #00ff88, 0 0 15px #00ff88, 0 0 30px #00ff88; }
-  50% { box-shadow: 0 0 10px #00ff88, 0 0 25px #00ff88, 0 0 50px #00ff88; }
-}
-
-@keyframes neon-pulse-purple {
-  0%, 100% { box-shadow: 0 0 5px #a855f7, 0 0 15px #a855f7, 0 0 30px #a855f7; }
-  50% { box-shadow: 0 0 10px #a855f7, 0 0 25px #a855f7, 0 0 50px #a855f7; }
-}
-
-@keyframes neon-pulse-blue {
-  0%, 100% { box-shadow: 0 0 5px #3b82f6, 0 0 15px #3b82f6, 0 0 30px #3b82f6; }
-  50% { box-shadow: 0 0 10px #3b82f6, 0 0 25px #3b82f6, 0 0 50px #3b82f6; }
+/* ===== GOLD GLOW ANIMATIONS ===== */
+@keyframes gold-pulse {
+  0%, 100% { box-shadow: 0 0 6px #fbbf24, 0 0 18px #f59e0b, 0 0 36px #d97706aa; }
+  50%       { box-shadow: 0 0 12px #fbbf24, 0 0 30px #f59e0b, 0 0 60px #d97706cc; }
 }
 
 @keyframes title-glow {
-  0%, 100% { text-shadow: 0 0 20px #a855f7, 0 0 40px #a855f7, 0 0 80px #a855f7; }
-  50% { text-shadow: 0 0 30px #a855f7, 0 0 60px #a855f7, 0 0 120px #a855f7, 0 0 200px #a855f7; }
+  0%, 100% { text-shadow: 0 0 20px #fbbf24, 0 0 50px #f59e0b99, 0 0 90px #d9770666; }
+  50%       { text-shadow: 0 0 30px #fbbf24, 0 0 70px #f59e0bbb, 0 0 140px #d97706aa, 0 2px 0 rgba(0,0,0,0.4); }
 }
 
 @keyframes live-dot {
-  0%, 100% { opacity: 1; box-shadow: 0 0 6px #00ff88; }
-  50% { opacity: 0.3; box-shadow: none; }
-}
-
-@keyframes float-particle {
-  0% { transform: translateY(0px) scale(1); opacity: 0.8; }
-  50% { transform: translateY(-8px) scale(1.2); opacity: 1; }
-  100% { transform: translateY(0px) scale(1); opacity: 0.8; }
-}
-
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
+  0%, 100% { opacity: 1;  box-shadow: 0 0 7px #fbbf24, 0 0 14px #f59e0b; }
+  50%       { opacity: 0.4; box-shadow: none; }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
 }
 
-.neon-green { animation: neon-pulse-green 2s ease-in-out infinite; }
-.neon-purple { animation: neon-pulse-purple 2s ease-in-out infinite; }
-.neon-blue { animation: neon-pulse-blue 2s ease-in-out infinite; }
-.title-glow { animation: title-glow 3s ease-in-out infinite; }
-.live-dot { animation: live-dot 1.5s ease-in-out infinite; }
+@keyframes gold-border-glow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(251,191,36,0.3), 0 0 12px rgba(251,191,36,0.15); }
+  50%       { box-shadow: 0 0 0 1px rgba(251,191,36,0.6), 0 0 24px rgba(251,191,36,0.3); }
+}
 
+.title-glow  { animation: title-glow  3s ease-in-out infinite; }
+.live-dot    { animation: live-dot   1.5s ease-in-out infinite; }
+.gold-pulse  { animation: gold-pulse  2s ease-in-out infinite; }
+.gold-border { animation: gold-border-glow 2.5s ease-in-out infinite; }
+
+/* Shimmer subtitle — gold tones */
 .shimmer-text {
-  background: linear-gradient(90deg, #a855f7 0%, #00ff88 25%, #3b82f6 50%, #a855f7 75%, #00ff88 100%);
+  background: linear-gradient(90deg,
+    #fbbf24 0%,
+    #fde68a 20%,
+    #f59e0b 40%,
+    #ffffff 55%,
+    #f59e0b 70%,
+    #fde68a 85%,
+    #fbbf24 100%
+  );
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -166,78 +156,99 @@
   animation: shimmer 4s linear infinite;
 }
 
-/* Card glassmorphism */
+/* ===== GLASS CARDS — warm gold glass ===== */
 .glass-card {
-  background: rgba(15, 10, 30, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(168, 85, 247, 0.2);
+  background: rgba(18, 12, 2, 0.72);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(251, 191, 36, 0.18);
+  box-shadow: 0 0 0 1px rgba(251,191,36,0.06), inset 0 1px 0 rgba(251,191,36,0.08);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.glass-card:hover {
+  border-color: rgba(251,191,36,0.28);
+  box-shadow: 0 0 20px rgba(251,191,36,0.08), inset 0 1px 0 rgba(251,191,36,0.12);
 }
 
-.glass-card-green {
-  background: rgba(10, 25, 15, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 255, 136, 0.2);
-}
-
-/* Server button selected */
+/* ===== SERVER BUTTON — selected gold pill ===== */
 .server-btn-selected {
-  background: rgba(168, 85, 247, 0.2);
-  border-color: #a855f7;
-  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4), inset 0 0 10px rgba(168, 85, 247, 0.1);
-  color: #a855f7;
+  background: linear-gradient(135deg, rgba(251,191,36,0.22), rgba(245,158,11,0.16));
+  border-color: #fbbf24;
+  box-shadow: 0 0 16px rgba(251,191,36,0.4), inset 0 0 10px rgba(251,191,36,0.1);
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(251,191,36,0.5);
 }
 
-/* Join button */
+/* ===== JOIN GAME — gold gradient CTA ===== */
 .join-btn {
-  background: linear-gradient(135deg, #7c3aed, #a855f7);
-  box-shadow: 0 0 20px rgba(168, 85, 247, 0.5), 0 0 40px rgba(168, 85, 247, 0.3);
-  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #d97706, #f59e0b 45%, #fbbf24 75%, #fde68a);
+  color: #1a0e00;
+  font-weight: 900;
+  box-shadow:
+    0 0 22px rgba(251,191,36,0.55),
+    0 0 45px rgba(245,158,11,0.35),
+    0 4px 12px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.3);
+  transition: all 0.28s ease;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 .join-btn:hover {
-  box-shadow: 0 0 30px rgba(168, 85, 247, 0.7), 0 0 60px rgba(168, 85, 247, 0.5);
-  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 0 35px rgba(251,191,36,0.75),
+    0 0 70px rgba(245,158,11,0.5),
+    0 6px 18px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+  transform: translateY(-2px) scale(1.025);
+  filter: brightness(1.08);
+}
+.join-btn:active {
+  transform: translateY(0) scale(0.99);
 }
 
-/* Login button */
+/* ===== LOGIN — gold outline button ===== */
 .login-btn {
-  background: transparent;
-  border: 1.5px solid #00ff88;
-  color: #00ff88;
-  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
-  transition: all 0.3s ease;
+  background: rgba(251,191,36,0.07);
+  border: 1.5px solid #fbbf24;
+  color: #fbbf24;
+  box-shadow: 0 0 10px rgba(251,191,36,0.25);
+  transition: all 0.25s ease;
+  text-shadow: 0 0 8px rgba(251,191,36,0.4);
 }
 .login-btn:hover {
-  background: rgba(0, 255, 136, 0.1);
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+  background: rgba(251,191,36,0.15);
+  box-shadow: 0 0 20px rgba(251,191,36,0.45), inset 0 0 10px rgba(251,191,36,0.08);
+  transform: translateY(-1px);
 }
 
-/* Secondary button */
+/* ===== SECONDARY — muted gold outline ===== */
 .secondary-btn {
-  background: rgba(168, 85, 247, 0.1);
-  border: 1px solid rgba(168, 85, 247, 0.4);
-  color: #a855f7;
-  transition: all 0.3s ease;
+  background: rgba(251,191,36,0.07);
+  border: 1px solid rgba(251,191,36,0.35);
+  color: #fbbf24;
+  transition: all 0.25s ease;
 }
 .secondary-btn:hover {
-  background: rgba(168, 85, 247, 0.2);
-  box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+  background: rgba(251,191,36,0.15);
+  box-shadow: 0 0 14px rgba(251,191,36,0.3);
+  transform: translateY(-1px);
 }
 
+/* ===== GREEN BTN → repurposed as amber secondary ===== */
 .green-btn {
-  background: rgba(0, 255, 136, 0.1);
-  border: 1px solid rgba(0, 255, 136, 0.4);
-  color: #00ff88;
-  transition: all 0.3s ease;
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.42);
+  color: #fbbf24;
+  transition: all 0.25s ease;
 }
 .green-btn:hover {
-  background: rgba(0, 255, 136, 0.2);
-  box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+  background: rgba(251,191,36,0.22);
+  box-shadow: 0 0 14px rgba(251,191,36,0.35);
+  transform: translateY(-1px);
 }
 
-/* Grid bg */
+/* ===== GRID BG — warm gold tint ===== */
 .grid-bg {
-  background-image: 
-    linear-gradient(rgba(168, 85, 247, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(168, 85, 247, 0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-image:
+    linear-gradient(rgba(251,191,36,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(251,191,36,0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
 }

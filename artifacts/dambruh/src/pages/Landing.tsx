@@ -5,6 +5,12 @@ import { SNAKE_COLORS, DEFAULT_COLOR_ID } from "@/lib/snakeColors";
 
 const SERVERS = ["$1", "$5", "$20"];
 
+// ---- Gold palette constants ----
+const GOLD      = "#fbbf24";
+const GOLD_DIM  = "#f59e0b";
+const GOLD_DEEP = "#d97706";
+const GOLD_GLOW = "rgba(251,191,36,";
+
 function useOutsideClick(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
   useEffect(() => {
     const listener = (e: MouseEvent) => {
@@ -17,56 +23,40 @@ function useOutsideClick(ref: React.RefObject<HTMLElement | null>, handler: () =
 }
 
 export default function Landing() {
-  const [selectedServer, setSelectedServer] = useState("$5");
-
-  // Applied color (affects background snake)
-  const [appliedColorId, setAppliedColorId] = useState(DEFAULT_COLOR_ID);
-  // Pending color (preview in picker, not yet confirmed)
-  const [pendingColorId, setPendingColorId] = useState(DEFAULT_COLOR_ID);
+  const [selectedServer, setSelectedServer]   = useState("$5");
+  const [appliedColorId, setAppliedColorId]   = useState(DEFAULT_COLOR_ID);
+  const [pendingColorId, setPendingColorId]   = useState(DEFAULT_COLOR_ID);
   const [showColorPicker, setShowColorPicker] = useState(false);
-
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  // When picker opens, reset pending to the current applied color
-  const openPicker = () => {
-    setPendingColorId(appliedColorId);
-    setShowColorPicker(true);
-  };
+  const openPicker   = () => { setPendingColorId(appliedColorId); setShowColorPicker(true); };
+  const confirmColor = () => { setAppliedColorId(pendingColorId); setShowColorPicker(false); };
+  const cancelColor  = () => { setPendingColorId(appliedColorId); setShowColorPicker(false); };
 
-  const confirmColor = () => {
-    setAppliedColorId(pendingColorId);
-    setShowColorPicker(false);
-  };
-
-  const cancelColor = () => {
-    setPendingColorId(appliedColorId);
-    setShowColorPicker(false);
-  };
-
-  useOutsideClick(pickerRef, () => {
-    setPendingColorId(appliedColorId);
-    setShowColorPicker(false);
-  });
+  useOutsideClick(pickerRef, () => { setPendingColorId(appliedColorId); setShowColorPicker(false); });
 
   const appliedColor = SNAKE_COLORS.find((c) => c.id === appliedColorId) ?? SNAKE_COLORS[0];
   const pendingColor = SNAKE_COLORS.find((c) => c.id === pendingColorId) ?? SNAKE_COLORS[0];
-  const hasChanged = pendingColorId !== appliedColorId;
+  const hasChanged   = pendingColorId !== appliedColorId;
+  const previewColor = showColorPicker ? pendingColor : appliedColor;
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden" style={{ background: "#05030f" }}>
-      {/* Background uses APPLIED color */}
+    <div className="relative min-h-screen overflow-x-hidden" style={{ background: "#0d0900" }}>
       <SnakeCanvas playerColorId={appliedColorId} />
 
-      {/* Grid overlay */}
+      {/* Subtle gold grid */}
       <div className="fixed inset-0 pointer-events-none grid-bg" style={{ zIndex: 1 }} />
 
-      {/* Blur overlay */}
+      {/* Warm luminous overlay — gold radial from center, dark at edges */}
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
           zIndex: 2,
-          background: "radial-gradient(ellipse at center, rgba(5,3,15,0.52) 0%, rgba(5,3,15,0.74) 100%)",
-          backdropFilter: "blur(1.5px)",
+          background: [
+            "radial-gradient(ellipse 80% 55% at 50% 30%, rgba(251,191,36,0.07) 0%, transparent 70%)",
+            "radial-gradient(ellipse at center, rgba(13,9,0,0.50) 0%, rgba(13,9,0,0.78) 100%)",
+          ].join(", "),
+          backdropFilter: "blur(1px)",
         }}
       />
 
@@ -75,28 +65,46 @@ export default function Landing() {
 
         {/* ===== NAVBAR ===== */}
         <nav className="flex items-center justify-between px-6 md:px-12 py-5">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black"
-              style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", boxShadow: "0 0 20px rgba(168,85,247,0.5)", color: "#fff" }}
+              style={{
+                background: `linear-gradient(135deg, ${GOLD_DEEP}, ${GOLD})`,
+                boxShadow: `0 0 18px ${GOLD_GLOW}0.45), 0 2px 8px rgba(0,0,0,0.5)`,
+                color: "#1a0e00",
+              }}
             >
               D
             </div>
-            <span className="font-black text-xl tracking-wider text-white hidden sm:block" style={{ letterSpacing: "0.15em" }}>
+            <span
+              className="font-black text-xl hidden sm:block"
+              style={{ letterSpacing: "0.15em", color: GOLD, textShadow: `0 0 12px ${GOLD_GLOW}0.4)` }}
+            >
               DAMBRUH
             </span>
           </div>
-          <button className="login-btn px-6 py-2 rounded-full text-sm font-semibold tracking-wide">Login</button>
+          <button className="login-btn px-6 py-2 rounded-full text-sm font-semibold tracking-wide">
+            Login
+          </button>
         </nav>
 
         {/* ===== HERO ===== */}
         <div className="flex flex-col items-center text-center px-6 pt-8 pb-8">
+
+          {/* Main title — gold glow */}
           <h1
-            className="font-black uppercase tracking-widest title-glow"
-            style={{ fontSize: "clamp(3.5rem,12vw,8rem)", letterSpacing: "0.1em", lineHeight: 1, color: "#fff", textShadow: "0 0 40px #a855f7, 0 0 80px #a855f7" }}
+            className="font-black uppercase title-glow"
+            style={{
+              fontSize: "clamp(3.5rem,12vw,8rem)",
+              letterSpacing: "0.08em",
+              lineHeight: 1,
+              color: "#fff",
+            }}
           >
             DAMBRUH
           </h1>
+
+          {/* Gold shimmer subtitle */}
           <p className="shimmer-text font-bold tracking-[0.3em] uppercase mt-2 text-sm md:text-base">
             SKILL-BASED BETTING
           </p>
@@ -105,12 +113,24 @@ export default function Landing() {
           <div className="flex items-center gap-3 mt-8">
             <input
               type="text" value="???" disabled
-              className="px-5 py-2.5 rounded-xl text-center font-bold tracking-widest text-gray-500 cursor-not-allowed"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", width: "130px", fontSize: "1rem" }}
+              className="px-5 py-2.5 rounded-xl text-center font-bold tracking-widest cursor-not-allowed"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${GOLD_GLOW}0.15)`,
+                color: "#6b5a2a",
+                width: "130px",
+                fontSize: "1rem",
+              }}
             />
             <div className="flex items-center gap-2">
-              <span className="text-gray-400 text-sm">Login to set your name</span>
-              <button className="text-purple-400 hover:text-purple-300 transition-colors p-1 rounded-lg hover:bg-purple-500/10" title="Edit name">
+              <span className="text-sm" style={{ color: "#a08040" }}>Login to set your name</span>
+              <button
+                className="p-1 rounded-lg transition-colors"
+                style={{ color: GOLD_DIM }}
+                title="Edit name"
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `${GOLD_GLOW}0.1)`; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -123,11 +143,32 @@ export default function Landing() {
           <div className="flex items-center gap-3 mt-6">
             {SERVERS.map((s) => (
               <button
-                key={s} onClick={() => setSelectedServer(s)}
+                key={s}
+                onClick={() => setSelectedServer(s)}
                 className={`px-7 py-2.5 rounded-full font-bold text-base tracking-wide border transition-all duration-200 ${
-                  selectedServer === s ? "server-btn-selected" : "border-white/10 text-white/50 hover:border-purple-500/40 hover:text-white/80"
+                  selectedServer === s ? "server-btn-selected" : ""
                 }`}
-                style={{ background: selectedServer === s ? undefined : "rgba(255,255,255,0.04)" }}
+                style={
+                  selectedServer === s
+                    ? {}
+                    : {
+                        background: "rgba(255,255,255,0.04)",
+                        borderColor: `${GOLD_GLOW}0.18)`,
+                        color: "#a08040",
+                      }
+                }
+                onMouseEnter={(e) => {
+                  if (selectedServer !== s) {
+                    (e.currentTarget as HTMLElement).style.borderColor = `${GOLD_GLOW}0.4)`;
+                    (e.currentTarget as HTMLElement).style.color = GOLD;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedServer !== s) {
+                    (e.currentTarget as HTMLElement).style.borderColor = `${GOLD_GLOW}0.18)`;
+                    (e.currentTarget as HTMLElement).style.color = "#a08040";
+                  }
+                }}
               >
                 {s}
               </button>
@@ -135,20 +176,37 @@ export default function Landing() {
           </div>
 
           {/* JOIN GAME */}
-          <button className="join-btn mt-7 px-12 py-4 rounded-2xl text-white font-black text-xl tracking-wider uppercase">
+          <button className="join-btn mt-7 px-12 py-4 rounded-2xl text-xl tracking-wider uppercase">
             ▶ JOIN GAME
           </button>
 
           {/* Stats */}
           <div className="flex items-center gap-8 md:gap-16 mt-10">
             <div className="text-center">
-              <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Players Real-Time Active</p>
-              <p className="font-black text-4xl md:text-5xl" style={{ color: "#00ff88", textShadow: "0 0 20px rgba(0,255,136,0.5)" }}>43</p>
+              <p className="text-xs uppercase tracking-widest mb-1" style={{ color: "#7a6030" }}>
+                Players Real-Time Active
+              </p>
+              <p
+                className="font-black text-4xl md:text-5xl"
+                style={{ color: GOLD, textShadow: `0 0 22px ${GOLD_GLOW}0.55), 0 0 50px ${GOLD_GLOW}0.25)` }}
+              >
+                43
+              </p>
             </div>
-            <div className="w-px h-14 rounded-full" style={{ background: "linear-gradient(to bottom,transparent,rgba(168,85,247,0.4),transparent)" }} />
+            <div
+              className="w-px h-14 rounded-full"
+              style={{ background: `linear-gradient(to bottom, transparent, ${GOLD_GLOW}0.35), transparent)` }}
+            />
             <div className="text-center">
-              <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Global Player Winnings</p>
-              <p className="font-black text-3xl md:text-4xl" style={{ color: "#a855f7", textShadow: "0 0 20px rgba(168,85,247,0.5)" }}>$1,345,521</p>
+              <p className="text-xs uppercase tracking-widest mb-1" style={{ color: "#7a6030" }}>
+                Global Player Winnings
+              </p>
+              <p
+                className="font-black text-3xl md:text-4xl"
+                style={{ color: GOLD, textShadow: `0 0 22px ${GOLD_GLOW}0.55), 0 0 50px ${GOLD_GLOW}0.25)` }}
+              >
+                $1,345,521
+              </p>
             </div>
           </div>
         </div>
@@ -156,18 +214,29 @@ export default function Landing() {
         {/* ===== BOTTOM CARDS ===== */}
         <div className="px-4 md:px-8 lg:px-16 pb-16 max-w-2xl mx-auto flex flex-col gap-4">
 
-          {/* Wallet */}
+          {/* ---- Wallet ---- */}
           <div className="glass-card rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{
+                    background: `${GOLD_GLOW}0.12)`,
+                    border: `1px solid ${GOLD_GLOW}0.32)`,
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
                   </svg>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-xs uppercase tracking-wider">Balance</p>
-                  <p className="font-black text-2xl text-white" style={{ textShadow: "0 0 15px rgba(168,85,247,0.4)" }}>$5,050</p>
+                  <p className="text-xs uppercase tracking-wider" style={{ color: "#7a6030" }}>Balance</p>
+                  <p
+                    className="font-black text-2xl text-white"
+                    style={{ textShadow: `0 0 16px ${GOLD_GLOW}0.4)` }}
+                  >
+                    $5,050
+                  </p>
                 </div>
               </div>
             </div>
@@ -177,23 +246,32 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* ===== CUSTOMIZE CARD ===== */}
+          {/* ---- Customize ---- */}
           <div className="glass-card rounded-2xl p-5">
-            {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)" }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{
+                    background: `${GOLD_GLOW}0.1)`,
+                    border: `1px solid ${GOLD_GLOW}0.28)`,
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H5v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10h1.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/>
                   </svg>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-xs uppercase tracking-wider">Customize</p>
+                  <p className="text-xs uppercase tracking-wider" style={{ color: "#7a6030" }}>Customize</p>
                   <div className="flex items-center gap-2">
                     <p className="text-white font-semibold text-sm">Snake Appearance</p>
                     <div
-                      className="w-3 h-3 rounded-full ring-1 ring-white/20"
-                      style={{ background: appliedColor.color, boxShadow: `0 0 6px ${appliedColor.glow}` }}
+                      className="w-3 h-3 rounded-full ring-1"
+                      style={{
+                        background: appliedColor.color,
+                        boxShadow: `0 0 6px ${appliedColor.glow}`,
+                        ringColor: "rgba(255,255,255,0.2)",
+                      }}
                     />
                   </div>
                 </div>
@@ -203,14 +281,13 @@ export default function Landing() {
               </button>
             </div>
 
-            {/* ===== Animated Snake Preview ===== */}
-            {/* Preview uses pendingColorId so user can see the color they're about to confirm */}
+            {/* Animated Snake Preview */}
             <div
               className="rounded-xl overflow-hidden flex items-center justify-center"
               style={{
-                background: "rgba(5,3,15,0.85)",
-                border: `1px solid ${(showColorPicker ? pendingColor : appliedColor).color}33`,
-                boxShadow: `0 0 24px ${(showColorPicker ? pendingColor : appliedColor).glow}1a, inset 0 0 30px rgba(0,0,0,0.55)`,
+                background: "rgba(8,5,0,0.82)",
+                border: `1px solid ${previewColor.color}33`,
+                boxShadow: `0 0 24px ${previewColor.glow}1a, 0 0 0 1px ${GOLD_GLOW}0.06), inset 0 0 28px rgba(0,0,0,0.5)`,
                 minHeight: "160px",
               }}
             >
@@ -221,32 +298,34 @@ export default function Landing() {
             <div className="flex items-center justify-center gap-2 mt-2.5">
               <div
                 className="w-2.5 h-2.5 rounded-full transition-all duration-200"
-                style={{
-                  background: (showColorPicker ? pendingColor : appliedColor).color,
-                  boxShadow: `0 0 8px ${(showColorPicker ? pendingColor : appliedColor).glow}`,
-                }}
+                style={{ background: previewColor.color, boxShadow: `0 0 8px ${previewColor.glow}` }}
               />
-              <span className="text-xs text-gray-400 font-medium transition-all">
-                {showColorPicker ? pendingColor.name : appliedColor.name}
+              <span className="text-xs font-medium" style={{ color: "#7a6030" }}>
+                {previewColor.name}
                 {showColorPicker && hasChanged && (
-                  <span className="ml-1.5 text-yellow-400/80">(not confirmed)</span>
+                  <span className="ml-1.5" style={{ color: GOLD_DIM }}>(not confirmed)</span>
                 )}
               </span>
             </div>
 
-            {/* ===== COLOR PICKER PANEL ===== */}
+            {/* Color Picker Panel */}
             {showColorPicker && (
               <div
                 ref={pickerRef}
                 className="mt-4 rounded-xl p-4"
-                style={{ background: "rgba(0,0,0,0.58)", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{
+                  background: "rgba(8,5,0,0.70)",
+                  border: `1px solid ${GOLD_GLOW}0.14)`,
+                  boxShadow: `0 0 0 1px ${GOLD_GLOW}0.06)`,
+                }}
               >
-                <p className="text-xs text-gray-400 uppercase tracking-widest mb-3 font-semibold">Pick a Color</p>
+                <p className="text-xs uppercase tracking-widest mb-3 font-semibold" style={{ color: "#7a6030" }}>
+                  Pick a Color
+                </p>
 
-                {/* Color grid */}
                 <div className="grid grid-cols-5 gap-3 mb-4">
                   {SNAKE_COLORS.map((c) => {
-                    const isSelected = pendingColorId === c.id;
+                    const isSel = pendingColorId === c.id;
                     return (
                       <button
                         key={c.id}
@@ -258,13 +337,13 @@ export default function Landing() {
                           className="w-9 h-9 rounded-full transition-all duration-200 relative"
                           style={{
                             background: c.color,
-                            boxShadow: isSelected
+                            boxShadow: isSel
                               ? `0 0 0 3px rgba(255,255,255,0.9), 0 0 16px ${c.glow}`
                               : `0 0 8px ${c.glow}55`,
-                            transform: isSelected ? "scale(1.2)" : "scale(1)",
+                            transform: isSel ? "scale(1.2)" : "scale(1)",
                           }}
                         >
-                          {isSelected && (
+                          {isSel && (
                             <div className="absolute inset-0 flex items-center justify-center">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.65)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="20 6 9 17 4 12"/>
@@ -274,7 +353,7 @@ export default function Landing() {
                         </div>
                         <span
                           className="text-[9px] font-medium leading-tight text-center"
-                          style={{ color: isSelected ? c.color : "#6b7280", maxWidth: "48px" }}
+                          style={{ color: isSel ? c.color : "#7a6030", maxWidth: "48px" }}
                         >
                           {c.name}
                         </span>
@@ -283,34 +362,36 @@ export default function Landing() {
                   })}
                 </div>
 
-                {/* Confirm / Cancel buttons */}
+                {/* Confirm / Cancel */}
                 <div className="flex gap-3 mt-1">
                   <button
                     onClick={(e) => { e.stopPropagation(); cancelColor(); }}
                     className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
                     style={{
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#9ca3af",
+                      background: "rgba(255,255,255,0.04)",
+                      border: `1px solid ${GOLD_GLOW}0.14)`,
+                      color: "#7a6030",
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.09)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); confirmColor(); }}
                     disabled={!hasChanged}
-                    className="flex-2 px-8 py-2.5 rounded-xl text-sm font-bold transition-all duration-200"
+                    className="px-8 py-2.5 rounded-xl text-sm font-bold transition-all duration-200"
                     style={{
-                      background: hasChanged
-                        ? `linear-gradient(135deg, ${pendingColor.color}cc, ${pendingColor.color}88)`
-                        : "rgba(255,255,255,0.06)",
-                      border: hasChanged ? `1px solid ${pendingColor.color}88` : "1px solid rgba(255,255,255,0.1)",
-                      color: hasChanged ? "#fff" : "#4b5563",
-                      boxShadow: hasChanged ? `0 0 18px ${pendingColor.glow}44` : "none",
-                      cursor: hasChanged ? "pointer" : "not-allowed",
                       flex: 2,
+                      background: hasChanged
+                        ? `linear-gradient(135deg, ${GOLD_DEEP}, ${GOLD_DIM} 50%, ${GOLD})`
+                        : "rgba(255,255,255,0.05)",
+                      border: hasChanged ? `1px solid ${GOLD_GLOW}0.6)` : `1px solid ${GOLD_GLOW}0.1)`,
+                      color: hasChanged ? "#1a0e00" : "#4b4030",
+                      fontWeight: 900,
+                      boxShadow: hasChanged ? `0 0 20px ${GOLD_GLOW}0.45)` : "none",
+                      cursor: hasChanged ? "pointer" : "not-allowed",
+                      textShadow: hasChanged ? "0 1px 2px rgba(0,0,0,0.25)" : "none",
                     }}
                   >
                     ✓ Confirm Color
@@ -320,51 +401,85 @@ export default function Landing() {
             )}
           </div>
 
-          {/* Leaderboard */}
+          {/* ---- Leaderboard ---- */}
           <div className="glass-card rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🏆</span>
-                <h3 className="font-black text-white uppercase tracking-wider text-base">Leaderboard</h3>
+                <h3
+                  className="font-black uppercase tracking-wider text-base"
+                  style={{ color: "#fff", textShadow: `0 0 12px ${GOLD_GLOW}0.3)` }}
+                >
+                  Leaderboard
+                </h3>
               </div>
               <div className="flex items-center gap-2">
-                <div className="live-dot w-2.5 h-2.5 rounded-full" style={{ background: "#00ff88" }} />
-                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#00ff88" }}>LIVE</span>
+                <div className="live-dot w-2.5 h-2.5 rounded-full" style={{ background: GOLD }} />
+                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: GOLD }}>LIVE</span>
               </div>
             </div>
+
             <div className="space-y-3">
               {[
-                { rank: 1, name: "Demo2", amount: "$32,424", color: "#f59e0b" },
-                { rank: 2, name: "Demo3", amount: "$12,100", color: "#94a3b8" },
+                { rank: 1, name: "Demo2", amount: "$32,424", rankColor: GOLD },
+                { rank: 2, name: "Demo3", amount: "$12,100", rankColor: "#94a3b8" },
               ].map((player) => (
                 <div
                   key={player.rank}
                   className="flex items-center justify-between rounded-xl px-4 py-3"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+                  style={{
+                    background: `${GOLD_GLOW}0.04)`,
+                    border: `1px solid ${GOLD_GLOW}0.1)`,
+                  }}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="font-black text-base w-6 text-center" style={{ color: player.color, textShadow: `0 0 10px ${player.color}` }}>
+                    <span
+                      className="font-black text-base w-6 text-center"
+                      style={{ color: player.rankColor, textShadow: `0 0 10px ${player.rankColor}99` }}
+                    >
                       {player.rank}
                     </span>
                     <div
                       className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: "linear-gradient(135deg,rgba(168,85,247,0.3),rgba(0,255,136,0.3))", border: "1px solid rgba(168,85,247,0.4)" }}
+                      style={{
+                        background: `linear-gradient(135deg, ${GOLD_GLOW}0.28), rgba(217,119,6,0.22))`,
+                        border: `1px solid ${GOLD_GLOW}0.38)`,
+                        color: GOLD,
+                      }}
                     >
                       {player.name.slice(0, 2).toUpperCase()}
                     </div>
                     <span className="text-white font-semibold text-sm">{player.name}</span>
                   </div>
-                  <span className="font-black text-base" style={{ color: "#00ff88", textShadow: "0 0 10px rgba(0,255,136,0.4)" }}>
+                  <span
+                    className="font-black text-base"
+                    style={{ color: GOLD, textShadow: `0 0 10px ${GOLD_GLOW}0.45)` }}
+                  >
                     {player.amount}
                   </span>
                 </div>
               ))}
             </div>
+
             <button
               className="w-full mt-4 py-3 rounded-xl font-bold text-sm tracking-wide transition-all duration-200"
-              style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.25)", color: "#a855f7" }}
-              onMouseEnter={(e) => { const b = e.currentTarget as HTMLElement; b.style.background = "rgba(168,85,247,0.18)"; b.style.boxShadow = "0 0 20px rgba(168,85,247,0.25)"; }}
-              onMouseLeave={(e) => { const b = e.currentTarget as HTMLElement; b.style.background = "rgba(168,85,247,0.08)"; b.style.boxShadow = "none"; }}
+              style={{
+                background: `${GOLD_GLOW}0.07)`,
+                border: `1px solid ${GOLD_GLOW}0.25)`,
+                color: GOLD_DIM,
+              }}
+              onMouseEnter={(e) => {
+                const b = e.currentTarget as HTMLElement;
+                b.style.background = `${GOLD_GLOW}0.16)`;
+                b.style.boxShadow = `0 0 20px ${GOLD_GLOW}0.25)`;
+                b.style.color = GOLD;
+              }}
+              onMouseLeave={(e) => {
+                const b = e.currentTarget as HTMLElement;
+                b.style.background = `${GOLD_GLOW}0.07)`;
+                b.style.boxShadow = "none";
+                b.style.color = GOLD_DIM;
+              }}
             >
               View Full Leaderboard
             </button>
