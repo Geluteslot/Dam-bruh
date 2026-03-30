@@ -12,6 +12,8 @@ import ProfileModal from "@/components/modals/ProfileModal";
 import TransactionModal from "@/components/modals/TransactionModal";
 import CountdownScreen from "@/components/game/CountdownScreen";
 import GameArena from "@/components/game/GameArena";
+import Leaderboard from "@/components/Leaderboard";
+import { useSimulation } from "@/hooks/useSimulation";
 
 const BETS = [
   { value: "3rb",  label: "Pemula",       popular: false, premium: false },
@@ -49,70 +51,12 @@ export default function Landing() {
   const [toast, setToast]                     = useState<{ msg: string; type: "win" | "lose" } | null>(null);
   const [gamePhase, setGamePhase]             = useState<GamePhase>("idle");
 
-  // ── Active players (125–999, realistic drift) ──────────────────────────────
-  const [activePlayers, setActivePlayers] = useState(() => 125 + Math.floor(Math.random() * 875));
-  const activePlayersRef = useRef(activePlayers);
-  useEffect(() => {
-    activePlayersRef.current = activePlayers;
-  }, [activePlayers]);
-  useEffect(() => {
-    const tick = () => {
-      setActivePlayers((prev) => {
-        const drift = Math.random() < 0.12
-          ? (Math.random() < 0.5 ? -1 : 1) * (10 + Math.floor(Math.random() * 18))
-          : (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 4));
-        return Math.min(999, Math.max(125, prev + drift));
-      });
-    };
-    const id = setInterval(tick, 2800 + Math.random() * 2400);
-    return () => clearInterval(id);
-  }, []);
+  // ── Simulation engine (players, global winnings, leaderboard) ──────────────
+  const { activePlayers, rooms, globalWinnings, players: lbPlayers, userRank } = useSimulation(
+    user?.balance ?? 0
+  );
 
-  // ── Total winnings — kelipatan 1.000, natural sesuai volume pemain ──
-  // Asumsi: tiap pemain aktif memainkan ~1 game per 30 detik, bet rata-rata 10rb.
-  // Dalam 5 detik, ~(players/6) game selesai → winner dapat ~15rb rata-rata.
-  // Base per tick ≈ players × 2.500  (satuan rupiah).
-  const calcBase = () => {
-    const now = new Date();
-    const secsToday = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    // Estimasi akumulasi harian dengan 400 pemain rata-rata
-    return Math.max(1000, Math.floor(secsToday / 5) * 50) * 1000;
-  };
-  const [totalWinnings, setTotalWinnings] = useState(calcBase);
-  useEffect(() => {
-    const id = setInterval(() => {
-      const now = new Date();
-      if (now.getHours() === 0 && now.getMinutes() === 0 && now.getSeconds() < 6) {
-        setTotalWinnings(1000);
-        return;
-      }
-      // Base natural: jumlah pemain × 2.500 rupiah per tick
-      // (mis. 300 pemain → base 750.000, 999 pemain → base ~2.500.000)
-      const base = activePlayersRef.current * 2500;
-      const roll = Math.random();
-      let mult: number;
-      if (roll < 0.50) {
-        // Kecil: 10% – 50% dari base
-        mult = 0.10 + Math.random() * 0.40;
-      } else if (roll < 0.82) {
-        // Sedang: 60% – 150% dari base
-        mult = 0.60 + Math.random() * 0.90;
-      } else if (roll < 0.96) {
-        // Besar: 200% – 500% dari base
-        mult = 2.0 + Math.random() * 3.0;
-      } else {
-        // Jackpot: 1000% – 3000% dari base
-        mult = 10 + Math.random() * 20;
-      }
-      // Bulatkan ke kelipatan 1.000 terdekat, minimal 1.000
-      const inc = Math.max(1000, Math.round((base * mult) / 1000)) * 1000;
-      setTotalWinnings((p) => p + inc);
-    }, 5000);
-    return () => clearInterval(id);
-  }, []);
-
-  const fmtWinnings = (v: number) =>
-    `Rp.${v.toLocaleString("id-ID")}`;
+  const fmtWinnings = (v: number) => `Rp.${v.toLocaleString("id-ID")}`;
 
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -406,6 +350,9 @@ export default function Landing() {
               <p className="font-black text-4xl md:text-5xl" style={{ color: GOLD, textShadow: `0 0 22px ${GOLD_GLOW}0.55), 0 0 50px ${GOLD_GLOW}0.25)` }}>
                 {activePlayers}
               </p>
+              <p className="text-xs mt-1" style={{ color: "#7a6030" }}>
+                {rooms} room aktif
+              </p>
             </div>
             <div className="w-px h-14 rounded-full" style={{ background: `linear-gradient(to bottom, transparent, ${GOLD_GLOW}0.35), transparent)` }} />
             <div className="text-center">
@@ -413,7 +360,7 @@ export default function Landing() {
                 Total Kemenangan Global
               </p>
               <p className="font-black text-3xl md:text-4xl" style={{ color: GOLD, textShadow: `0 0 22px ${GOLD_GLOW}0.55), 0 0 50px ${GOLD_GLOW}0.25)` }}>
-                {fmtWinnings(totalWinnings)}
+                {fmtWinnings(globalWinnings)}
               </p>
             </div>
           </div>
@@ -578,56 +525,12 @@ export default function Landing() {
           </div>
 
           {/* ---- Leaderboard ---- */}
-          <div className="glass-card rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🏆</span>
-                <h3 className="font-black uppercase tracking-wider text-base" style={{ color: "#fff", textShadow: `0 0 12px ${GOLD_GLOW}0.3)` }}>
-                  Papan Peringkat
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="live-dot w-2.5 h-2.5 rounded-full" style={{ background: GOLD }} />
-                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: GOLD }}>LIVE</span>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {[
-                { rank: 1, name: "Demo2", amount: "Rp32.424", rankColor: GOLD },
-                { rank: 2, name: "Demo3", amount: "Rp12.100", rankColor: "#94a3b8" },
-              ].map((player) => (
-                <div
-                  key={player.rank}
-                  className="flex items-center justify-between rounded-xl px-4 py-3"
-                  style={{ background: `${GOLD_GLOW}0.04)`, border: `1px solid ${GOLD_GLOW}0.1)` }}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-black text-base w-6 text-center" style={{ color: player.rankColor, textShadow: `0 0 10px ${player.rankColor}99` }}>
-                      {player.rank}
-                    </span>
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: `linear-gradient(135deg, ${GOLD_GLOW}0.28), rgba(217,119,6,0.22))`, border: `1px solid ${GOLD_GLOW}0.38)`, color: GOLD }}
-                    >
-                      {player.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <span className="text-white font-semibold text-sm">{player.name}</span>
-                  </div>
-                  <span className="font-black text-base" style={{ color: GOLD, textShadow: `0 0 10px ${GOLD_GLOW}0.45)` }}>
-                    {player.amount}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <button
-              className="w-full mt-4 py-3 rounded-xl font-bold text-sm tracking-wide transition-all duration-200"
-              style={{ background: `${GOLD_GLOW}0.07)`, border: `1px solid ${GOLD_GLOW}0.25)`, color: GOLD_DIM }}
-              onMouseEnter={(e) => { const b = e.currentTarget as HTMLElement; b.style.background = `${GOLD_GLOW}0.16)`; b.style.color = GOLD; }}
-              onMouseLeave={(e) => { const b = e.currentTarget as HTMLElement; b.style.background = `${GOLD_GLOW}0.07)`; b.style.color = GOLD_DIM; }}
-            >
-              Lihat Papan Lengkap
-            </button>
-          </div>
+          <Leaderboard
+            players={lbPlayers}
+            userSaldo={user?.balance ?? 0}
+            userRank={userRank}
+            username={user?.username}
+          />
 
         </div>
       </div>
