@@ -43,8 +43,45 @@ function randomFakeActivity(): string {
   if (type === 3) return `🎮 ${name} masuk game Rp${[3,5,10,20][Math.floor(Math.random()*4)]}rb!`;
   return `⚡ ${name} dapat bubble +Rp${[500,1000,2000,3000][Math.floor(Math.random()*4)].toLocaleString("id-ID")}!`;
 }
-interface FakeNotif { id: number; text: string; }
+interface FakeNotif { id: number; text: string; jackpot?: boolean; }
 let _faId = 0;
+
+// ── Jackpot Event System ───────────────────────────────────────────────────────
+const JACKPOT_NAMES = ["Rizky","Bayu","Fajar","Kevin","Hadi","Wahyu","Agus","Rama","Dian"];
+const JACKPOT_AMOUNTS = [30000,40000,50000,75000,100000];
+function randomJackpotNotif(): string {
+  const name = JACKPOT_NAMES[Math.floor(Math.random() * JACKPOT_NAMES.length)];
+  const amt  = JACKPOT_AMOUNTS[Math.floor(Math.random() * JACKPOT_AMOUNTS.length)];
+  const msgs = [
+    `🎰 ${name} dapet jackpot Rp${amt.toLocaleString("id-ID")}!! SERIUS?!`,
+    `💥 ${name} cashout gila Rp${amt.toLocaleString("id-ID")}! Anjay!`,
+    `🔥 JACKPOT! ${name} borong Rp${amt.toLocaleString("id-ID")} sekarang!`,
+    `⚡ ${name} hoki banget! +Rp${amt.toLocaleString("id-ID")} sekali game!`,
+  ];
+  return msgs[Math.floor(Math.random() * msgs.length)];
+}
+
+// ── Fake Live Chat ─────────────────────────────────────────────────────────────
+const CHAT_USERNAMES = ["Rizky27","Budi_main","andi_sk","Dewi_12","Sari44","FajarKuu","NinaG","WahyuPlay","AgusJoss","Rama99","Lina_K","KevinX"];
+const CHAT_POOL = [
+  "anjir hampir menang 😭","gila hoki banget barusan","eh serius bisa cashout?",
+  "punten ieu susah pisan 😅","gaskeun deui lah 🔥","yah kalah deui, kesel euy",
+  "wah mantap sih ini game","aduh sayang bet gede tapi kalah",
+  "cuy ini lawak bisa cashout beneran ga","serius dapet duit? keren banget",
+  "wkwk gue udah 3x kalah nih","ih nyesek banget tadi 😭",
+  "meni susah euy cashout teh 🙁","gas lah gue mau coba lagi",
+  "hampir! HAMPIR! 😤","ya Allah kenapa mulu kalah",
+  "ieu mah hoki2an weh 😂","sumpah seru banget ini",
+  "anjay gue salah posisi mulu","main lagi deh, masih ada saldo",
+  "wuih cashout 50rb?! serius nih?","kalah tipis dong 😭 mana hampir 95%",
+  "dih si budi menang mulu sih","parah bet ini game bikin nagih",
+  "eh ada jackpot moment tadi?","gue hampir tadi 😭","seru juga sih",
+  "server 10rb paling worth","siapa yang cashout paling cepet?",
+  "aduh habis boost malah ketemu musuh 😭","next round gas!",
+  "meni tegang euy 💀","wkwk lucu juga nih gamenya",
+];
+interface ChatMsg { id: number; name: string; text: string; isUser?: boolean; }
+let _chatId = 0;
 
 function useOutsideClick(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
   useEffect(() => {
@@ -68,6 +105,11 @@ export default function Landing() {
   const [gamePhase, setGamePhase]             = useState<GamePhase>("idle");
   const [fakeNotifs, setFakeNotifs]           = useState<FakeNotif[]>([]);
   const [showPlayAgain, setShowPlayAgain]     = useState(false);
+  const [jackpotActive, setJackpotActive]     = useState(false);
+  const [chatMsgs, setChatMsgs]               = useState<ChatMsg[]>(() =>
+    CHAT_USERNAMES.slice(0, 5).map((name, i) => ({ id: _chatId += 100 + i, name, text: CHAT_POOL[i % CHAT_POOL.length] }))
+  );
+  const [chatInput, setChatInput]             = useState("");
 
   // ── Fake activity notifications (every 3-5s while idle) ─────────────────
   useEffect(() => {
@@ -84,6 +126,55 @@ export default function Landing() {
     let timerId = schedule();
     return () => clearTimeout(timerId);
   }, [gamePhase]);
+
+  // ── Jackpot event (every 10-20 min, lasts 90s) ──────────────────────────────
+  useEffect(() => {
+    const schedule = () => {
+      const delay = (10 + Math.random() * 10) * 60_000; // 10-20 min
+      return setTimeout(() => {
+        setJackpotActive(true);
+        // Flood with jackpot notifs (3-5 of them)
+        const count = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < count; i++) {
+          setTimeout(() => {
+            const notif: FakeNotif = { id: ++_faId, text: randomJackpotNotif(), jackpot: true };
+            setFakeNotifs((prev) => [...prev.slice(-3), notif]);
+            setTimeout(() => setFakeNotifs((prev) => prev.filter((n) => n.id !== notif.id)), 5000);
+          }, i * 1800);
+        }
+        setTimeout(() => setJackpotActive(false), 90_000);
+        timerId = schedule();
+      }, delay);
+    };
+    let timerId = schedule();
+    return () => clearTimeout(timerId);
+  }, []);
+
+  // ── Fake live chat (every 5-15s) ─────────────────────────────────────────────
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const schedule = () => {
+      const delay = 5000 + Math.random() * 10000;
+      return setTimeout(() => {
+        const name = CHAT_USERNAMES[Math.floor(Math.random() * CHAT_USERNAMES.length)];
+        const text = CHAT_POOL[Math.floor(Math.random() * CHAT_POOL.length)];
+        setChatMsgs((prev) => [...prev.slice(-35), { id: ++_chatId, name, text }]);
+        timerId = schedule();
+      }, delay);
+    };
+    let timerId = schedule();
+    return () => clearTimeout(timerId);
+  }, []);
+
+  useEffect(() => {
+    if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+  }, [chatMsgs]);
+
+  const sendChatMsg = () => {
+    if (!chatInput.trim()) return;
+    setChatMsgs((prev) => [...prev.slice(-35), { id: ++_chatId, name: user?.username ?? "Kamu", text: chatInput.trim(), isUser: true }]);
+    setChatInput("");
+  };
 
   // ── Simulation engine (players, global winnings, leaderboard) ──────────────
   const { activePlayers, rooms, globalWinnings, players: lbPlayers, userRank } = useSimulation(
@@ -163,6 +254,7 @@ export default function Landing() {
         playerColor={appliedColor.color}
         betAmount={betAmountMap[selectedServer] ?? 10000}
         playerSaldo={user.balance}
+        isJackpot={jackpotActive}
         onGameEnd={handleGameEnd}
       />
     );
@@ -176,6 +268,8 @@ export default function Landing() {
         @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes faNotifIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes playAgainJoin { 0%,100% { box-shadow: 0 0 30px rgba(251,191,36,0.5), 0 0 60px rgba(251,191,36,0.2); } 50% { box-shadow: 0 0 60px rgba(251,191,36,0.9), 0 0 120px rgba(251,191,36,0.4); } }
+        @keyframes jackpotBanner { 0%,100% { opacity:1; box-shadow: 0 0 30px rgba(251,191,36,0.4); } 50% { opacity:0.85; box-shadow: 0 0 60px rgba(251,191,36,0.9); } }
+        @keyframes jackpotShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
       `}</style>
 
       <SnakeCanvas playerColorId={appliedColorId} />
@@ -193,23 +287,34 @@ export default function Landing() {
         }}
       />
 
+      {/* Jackpot Banner */}
+      {jackpotActive && (
+        <div className="fixed top-0 left-0 right-0 flex justify-center pointer-events-none" style={{ zIndex: 45 }}>
+          <div className="px-8 py-2.5 text-sm font-black uppercase tracking-widest flex items-center gap-3"
+            style={{ background: `linear-gradient(135deg, rgba(217,119,6,0.96), rgba(251,191,36,0.96))`, color: "#1a0e00", animation: "jackpotBanner 1.1s ease-in-out infinite", borderRadius: "0 0 16px 16px", boxShadow: "0 4px 30px rgba(251,191,36,0.6)" }}>
+            <span style={{ animation: "jackpotShake 0.4s ease-in-out infinite" }}>🔥</span>
+            JACKPOT MOMENT! Reward besar menantimu!
+            <span style={{ animation: "jackpotShake 0.4s ease-in-out infinite" }}>🔥</span>
+          </div>
+        </div>
+      )}
+
       {/* Fake Activity Notifications */}
       <div className="fixed top-20 right-4 flex flex-col gap-2 pointer-events-none" style={{ zIndex: 40 }}>
         {fakeNotifs.map((n) => (
-          <div
-            key={n.id}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold"
+          <div key={n.id} className="px-4 py-2.5 rounded-xl text-xs font-semibold"
             style={{
-              background: "rgba(13,9,0,0.92)",
-              border: `1px solid ${GOLD_GLOW}0.25)`,
-              color: "#e2c97e",
-              boxShadow: `0 0 16px ${GOLD_GLOW}0.15), 0 4px 16px rgba(0,0,0,0.5)`,
+              background: n.jackpot ? "rgba(120,60,0,0.95)" : "rgba(13,9,0,0.92)",
+              border: `1px solid ${n.jackpot ? "rgba(251,191,36,0.7)" : `${GOLD_GLOW}0.25)`}`,
+              color: n.jackpot ? "#fbbf24" : "#e2c97e",
+              boxShadow: n.jackpot ? `0 0 30px rgba(251,191,36,0.5), 0 4px 16px rgba(0,0,0,0.5)` : `0 0 16px ${GOLD_GLOW}0.15), 0 4px 16px rgba(0,0,0,0.5)`,
               animation: "faNotifIn 0.35s cubic-bezier(.22,1,.36,1)",
               backdropFilter: "blur(8px)",
-              maxWidth: 220,
+              maxWidth: 260,
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
+              fontSize: n.jackpot ? "0.75rem" : undefined,
             }}
           >
             {n.text}
@@ -601,6 +706,55 @@ export default function Landing() {
             userRank={userRank}
             username={user?.username}
           />
+
+          {/* ---- Live Chat ---- */}
+          <div className="glass-card rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span style={{ fontSize: 16 }}>💬</span>
+                <h3 className="font-black uppercase tracking-wider text-sm text-white">Live Chat</h3>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 6px #4ade80", animation: "jackpotBanner 1.5s ease-in-out infinite" }} />
+                <span className="text-xs font-bold" style={{ color: "#4ade80" }}>LIVE</span>
+              </div>
+            </div>
+
+            <div ref={chatScrollRef} className="flex flex-col gap-1.5 overflow-y-auto mb-3"
+              style={{ maxHeight: 200, overflowY: "auto", scrollBehavior: "smooth" }}>
+              {chatMsgs.map((m) => (
+                <div key={m.id} className="flex gap-2 items-start">
+                  <span className="text-xs font-bold shrink-0" style={{ color: m.isUser ? GOLD : "#5a7090", minWidth: 0 }}>
+                    {m.name}:
+                  </span>
+                  <span className="text-xs leading-relaxed" style={{ color: m.isUser ? "#fff" : "#8fa3b8", flex: 1, wordBreak: "break-word" }}>
+                    {m.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 mt-1">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendChatMsg()}
+                placeholder={user ? "Tulis pesan..." : "Login untuk chat..."}
+                disabled={!user}
+                maxLength={80}
+                className="flex-1 px-3 py-2 rounded-xl text-xs"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", outline: "none", opacity: user ? 1 : 0.5 }}
+              />
+              <button
+                onClick={sendChatMsg}
+                disabled={!user || !chatInput.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-bold"
+                style={{ background: `${GOLD_GLOW}0.14)`, border: `1px solid ${GOLD_GLOW}0.3)`, color: GOLD, opacity: user && chatInput.trim() ? 1 : 0.4 }}>
+                Kirim
+              </button>
+            </div>
+          </div>
 
         </div>
       </div>

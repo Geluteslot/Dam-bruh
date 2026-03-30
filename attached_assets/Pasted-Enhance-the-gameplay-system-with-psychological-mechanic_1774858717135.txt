@@ -1,0 +1,233 @@
+Enhance the gameplay system with psychological mechanics, event system, fake chat, and dynamic player interactions.
+
+IMPORTANT:
+- Gunakan Bahasa Indonesia santai (boleh campur sedikit bahasa Sunda biar natural)
+- Jangan terlalu baku
+- System harus terasa natural (tidak terlihat diatur)
+- Fokus ke pengalaman player: seru, tegang, nagih
+
+========================
+LUCK SYSTEM (HOKI & SIAL)
+========================
+
+Setiap player punya status:
+- HOKI
+- NORMAL
+- SIAL
+
+Durasi:
+- 5 – 15 menit
+
+Rotasi:
+HOKI → NORMAL → SIAL → NORMAL → HOKI
+
+EFEK:
+
+HOKI:
+- Lebih gampang menang
+- Bubble lebih banyak
+- Kayak lagi hoki banget 🔥
+
+NORMAL:
+- Biasa aja
+
+SIAL:
+- Sering hampir menang tapi gagal
+- "dikit lagi padahal 😭"
+
+Transisi harus halus, jangan tiba-tiba
+
+========================
+WINRATE CONTROL
+========================
+
+Target winrate:
+40% – 60%
+
+Kalau player:
+- kalah terus → bantu sedikit (masuk hoki)
+- menang terus → turunin dikit (biar balance)
+
+Tujuan:
+- gak bikin curiga
+- tetap terasa fair
+
+========================
+ANTI BANGKRUT
+========================
+
+Kalau saldo kecil:
+(< Rp10.000)
+
+→ kasih sedikit bantuan:
+- peluang menang naik dikit
+- reward agak lebih gede
+
+Biar player:
+"ah masih bisa lanjut nih"
+
+========================
+NEAR WIN SYSTEM
+========================
+
+Saat hampir menang (90–95%):
+
+Kadang:
+- jadi menang
+Kadang:
+- gagal tipis
+
+Feel:
+"yaelah dikit lagi 😭"
+
+========================
+EVENT JACKPOT (HEBOH MOMENT)
+========================
+
+Kadang-kadang (random 10–20 menit):
+
+Muncul event:
+- "🔥 JACKPOT MOMENT!"
+
+Efek:
+- peluang reward besar meningkat
+- banyak player menang
+
+Tampilkan:
+"Rizky dapet jackpot 50rb!"
+"Anjay hoki parah sih 😱"
+
+Tujuan:
+- bikin suasana rame
+- bikin player semangat
+
+========================
+FAKE CHAT PLAYER
+========================
+
+Tampilkan chat live:
+
+Contoh:
+- "anjir hampir menang 😭"
+- "gila hoki banget barusan"
+- "eh serius bisa cashout?"
+- "punten ieu susah pisan 😅"
+- "gaskeun deui lah 🔥"
+- "yah kalah deui, kesel euy"
+
+Frekuensi:
+- tiap 5–15 detik
+
+Style:
+- santai
+- campur Indo + Sunda dikit
+
+========================
+DRAMA MUSUH (KALAH TIPIS)
+========================
+
+Kadang player:
+- hampir menang
+- tapi disalip musuh
+
+Contoh:
+- lagi isi circle 95%
+- tiba-tiba musuh lewat → gagal
+
+Efek:
+"nyesek banget anjir 😭"
+
+Tapi:
+- jangan terlalu sering
+- biar gak ngeselin
+
+========================
+WIN MOMENT UI
+========================
+
+Saat menang:
+
+Tampilkan:
+"KAMU MENANG!"
+
+Efek:
+- glow gold terang
+- animasi zoom
+- partikel ringan
+
+Tambahin feel:
+"mantap! gas lagi 🔥"
+
+========================
+LOSE MOMENT UI
+========================
+
+Saat kalah:
+
+Tampilkan:
+"Yah kalah 😅 coba lagi"
+
+Efek:
+- fade merah ringan
+- jangan terlalu nyakitin
+
+========================
+REWARD FEEL
+========================
+
+- Sering:
+  reward kecil
+  +500, +1000
+
+- Jarang:
+  reward besar
+
+Tujuan:
+- player tetap ngerasa dapet
+
+========================
+SESSION LOOP
+========================
+
+Setelah game:
+
+Tampilkan:
+"Main lagi?"
+
+Tambahin:
+- glow tombol
+- mudah diklik
+
+Feel:
+"gas lagi ga sih?"
+
+========================
+INTERAKSI USER
+========================
+
+- User bisa komentar (optional input chat)
+- Chat muncul di list
+
+Contoh:
+- "gue hampir tadi 😭"
+- "ini hoki2an ya?"
+- "seru juga sih"
+
+========================
+VARIASI EMOSI
+========================
+
+Game harus terasa:
+- tegang
+- senang
+- kesel dikit
+- puas pas menang
+
+========================
+TUJUAN SISTEM
+========================
+
+- Bikin player ketagihan
+- Bikin player balik lagi
+- Bikin game terasa hidup
+- Bikin suasana rame & seru
