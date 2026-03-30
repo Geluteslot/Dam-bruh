@@ -1,0 +1,165 @@
+Enhance the existing web game UI by adding Login, Register, Profile, and Transaction History system.
+
+IMPORTANT:
+- DO NOT change layout, structure, or positions
+- DO NOT remove any existing features
+- ONLY add and improve functionality
+- ALL TEXT MUST USE INDONESIAN LANGUAGE
+- Keep design consistent with gold premium theme
+
+========================
+TOMBOL KANAN ATAS
+========================
+- Sebelum login:
+  - Tampilkan tombol: "Masuk"
+
+- Setelah login:
+  - Tampilkan inisial username (huruf pertama)
+  - Contoh: "Dandi" → "D"
+  - Bentuk lingkaran (rounded)
+  - Warna gold dengan efek glow
+
+- Saat diklik:
+  - Tampilkan dropdown atau modal menu profil
+
+========================
+MENU PROFIL
+========================
+Tampilkan informasi:
+- Nama Pengguna
+- Kata Sandi (disamarkan: ******)
+- Bank (READ ONLY / tidak bisa diubah)
+- Nama Pemilik Rekening (READ ONLY)
+- Nomor Rekening (READ ONLY)
+
+ATURAN:
+- Hanya kata sandi yang bisa diubah
+
+Fitur:
+- Tombol: "Ubah Kata Sandi"
+- Input password baru
+- Simpan ke localStorage
+
+========================
+RIWAYAT TRANSAKSI
+========================
+Tambahkan menu atau section:
+
+Judul:
+"Riwayat Transaksi"
+
+Isi list:
+- Jenis:
+  (Deposit / Tarik Dana / Masuk Game / Menang / Kalah)
+- Nominal:
+  contoh: +$10 atau -$5
+- Tanggal & waktu
+- Status:
+  (Berhasil / Pending / Gagal)
+
+WARNA:
+- Hijau = positif (menang / deposit)
+- Merah = negatif (kalah / withdraw)
+- Gold = highlight utama
+
+FITUR TAMBAHAN:
+- Filter:
+  (Semua / Deposit / Game / Tarik Dana)
+
+DATA:
+- Generate data otomatis
+- Tambahkan data saat:
+  - Klik "Masuk Game"
+  - Simulasi menang/kalah
+  - Deposit / Tarik Dana
+
+========================
+DAFTAR AKUN
+========================
+Form:
+- Nama Pengguna
+- Kata Sandi
+- Konfirmasi Kata Sandi
+- Pilih Bank:
+  (BCA, BRI, DANA, BSI, BNI, GOPAY)
+- Nama Pemilik Rekening
+- Nomor Rekening
+
+VALIDASI:
+- Semua field wajib diisi
+- Password harus sama dengan konfirmasi
+
+ATURAN:
+- Setelah daftar:
+  - Data bank & rekening menjadi permanen (tidak bisa diubah)
+
+- Setelah berhasil daftar:
+  - User otomatis login
+
+========================
+MENU MASUK
+========================
+Field:
+- Nama Pengguna
+- Kata Sandi
+
+Pilihan:
+- "Lupa Kata Sandi"
+- "Daftar Akun"
+
+========================
+LUPA KATA SANDI
+========================
+Input:
+- Nama Pengguna
+- Nama Pemilik Rekening
+- Nomor Rekening
+
+VALIDASI:
+- Harus sesuai dengan data yang tersimpan
+
+Jika cocok:
+- Izinkan reset password ATAU generate otomatis
+
+Tampilkan pesan:
+"Kata sandi berhasil direset. Wajib ganti kembali setelah masuk."
+
+========================
+GAYA UI
+========================
+- Tema utama: gold (kuning + emas)
+- Aksen: hitam
+- Tidak terlalu gelap (cerah & premium)
+- Gunakan efek glassmorphism (blur background)
+- Sudut rounded
+- Glow effect pada tombol
+- Animasi halus (hover, klik, modal)
+
+========================
+INTERAKSI
+========================
+- Animasi modal: fade + scale
+- Hover tombol: glow + sedikit membesar
+- Notifikasi:
+  - Error (merah)
+  - Sukses (hijau/gold)
+
+========================
+DATA
+========================
+- Gunakan localStorage
+- Simpan:
+  - Data user
+  - Status login
+  - Riwayat transaksi
+
+========================
+PENTING
+========================
+- Profil hanya muncul setelah login
+- Sebelum login → tombol "Masuk"
+- Setelah login → tampil inisial user
+- Data bank & rekening terkunci (tidak bisa diubah)
+- Hanya kata sandi yang bisa diubah
+- Semua teks wajib Bahasa Indonesia
+- UI harus responsif (mobile & desktop)
