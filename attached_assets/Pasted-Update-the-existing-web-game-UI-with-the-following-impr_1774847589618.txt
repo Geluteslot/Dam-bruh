@@ -1,0 +1,80 @@
+Update the existing web game UI with the following improvements.
+
+IMPORTANT:
+- DO NOT change layout structure or positions
+- DO NOT remove any existing features
+- ONLY improve visuals, betting options, and UI styling
+
+BETTING OPTIONS:
+Replace existing values:
+2rb, 5rb, 10rb, 15rb, 30rb, 50rb
+
+WITH:
+3rb – 5rb – 10rb – 20rb
+
+BETTING BUTTON DESIGN:
+- Use rounded pill-shaped buttons
+- Apply bright gold gradient (yellow → gold)
+- Add strong soft glow effect (neon gold)
+- Add smooth hover animation:
+  - scale up slightly (1.05)
+  - glow becomes stronger
+- Add click/press animation
+
+LABELS:
+- 3rb → show small label: "Beginner"
+- 10rb → show: "🔥 Popular" (make this the MOST highlighted button)
+- 20rb → show: "💰 High Reward"
+
+VISUAL PRIORITY:
+- 10rb must be the most attractive (strongest glow, slightly bigger)
+- 20rb slightly different tone (premium/high risk look)
+
+JOIN GAME BUTTON:
+- Make the button more visible and attractive
+- Larger size than others
+- Strong gold glow
+- Add pulsing animation (slow glow pulse)
+- Include play icon ▶
+- Smooth hover animation
+
+UI STYLE:
+- Bright gold and yellow theme
+- Clean black accents
+- Not too dark (keep UI luminous and premium)
+- Modern gaming + luxury feel
+
+CARDS / PANELS:
+- Use semi-transparent dark background
+- Add blur (glass effect)
+- Thin gold border or glow edge
+- Rounded corners
+
+BACKGROUND:
+- Add animated background with MANY moving snakes
+- Snakes move smoothly in random directions (slither-style)
+- Use glowing colors (gold, yellow, slight neon tones)
+- Add blur/dark overlay for readability
+- Add small glowing particles (like food dots)
+
+SNAKE STYLE:
+- Built from circular segments
+- Smooth organic movement
+- Soft glow effect
+- Some snakes move slow, some faster (variation)
+
+SNAKE DETAILS:
+- Snakes must have cute eyes (white + black pupils)
+- Eyes face movement direction
+- Makes the background feel alive
+
+EXTRA EFFECTS:
+- Soft lighting across background
+- Smooth transitions for UI
+- Hover animations for all buttons
+
+IMPORTANT FINAL:
+- Background snakes must feel alive and active
+- UI must remain clearly readable above animation
+- Keep everything responsive (mobile and desktop)
+- Maintain performance (lightweight animation)

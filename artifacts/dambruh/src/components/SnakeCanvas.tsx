@@ -257,34 +257,40 @@ export default function SnakeCanvas({ playerColorId }: Props) {
       const colorData = isPlayer
         ? (SNAKE_COLORS.find((c) => c.id === playerColorRef.current) ?? SNAKE_COLORS[0])
         : BG_COLORS[idx % BG_COLORS.length];
-      const len = 95 + Math.floor(Math.random() * 55);
+      const len = 80 + Math.floor(Math.random() * 70);
       const sx = Math.random() * W;
       const sy = Math.random() * H;
       const a = Math.random() * Math.PI * 2;
+      const speedVariant = Math.random();
+      const speed = speedVariant < 0.3
+        ? 0.55 + Math.random() * 0.45   // slow
+        : speedVariant < 0.7
+        ? 1.0 + Math.random() * 0.7     // normal
+        : 1.8 + Math.random() * 0.8;    // fast
       return {
         segments: Array.from({ length: len }, () => ({ x: sx, y: sy })),
-        angle: a, speed: 1.1 + Math.random() * 0.9,
-        turnSpeed: 0.013 + Math.random() * 0.015,
+        angle: a, speed,
+        turnSpeed: 0.012 + Math.random() * 0.018,
         targetAngle: a, colorData,
-        width: isPlayer ? 11 : 7 + Math.random() * 6,
+        width: isPlayer ? 11 : 6 + Math.random() * 7,
         length: len, turnTimer: 0,
-        turnInterval: 90 + Math.floor(Math.random() * 120),
+        turnInterval: 70 + Math.floor(Math.random() * 130),
         isPlayer,
       };
     }
 
     const snakes: Snake[] = [
       makeSnake(0, true),
-      ...Array.from({ length: 6 }, (_, i) => makeSnake(i, false)),
+      ...Array.from({ length: 14 }, (_, i) => makeSnake(i, false)),
     ];
 
-    const foodColors = ["#00ff88","#a855f7","#3b82f6","#f59e0b","#22d3ee","#f0abfc","#fb7185"];
-    const foods: Food[] = Array.from({ length: 55 }, () => ({
+    const foodColors = ["#fbbf24","#f59e0b","#fde68a","#a855f7","#3b82f6","#22d3ee","#f0abfc","#fb7185","#00ff88","#ffd700"];
+    const foods: Food[] = Array.from({ length: 80 }, () => ({
       x: Math.random() * W, y: Math.random() * H,
       color: foodColors[Math.floor(Math.random() * foodColors.length)],
-      size: 2.5 + Math.random() * 3,
+      size: 2.5 + Math.random() * 3.5,
       offset: Math.random() * Math.PI * 2,
-      speed: 0.025 + Math.random() * 0.025,
+      speed: 0.02 + Math.random() * 0.035,
     }));
 
     let frame = 0;

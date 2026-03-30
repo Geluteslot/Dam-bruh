@@ -3,7 +3,12 @@ import SnakeCanvas from "@/components/SnakeCanvas";
 import SnakePreview from "@/components/SnakePreview";
 import { SNAKE_COLORS, DEFAULT_COLOR_ID } from "@/lib/snakeColors";
 
-const SERVERS = ["2rb", "5rb", "10rb", "15rb", "30rb", "50rb"];
+const BETS = [
+  { value: "3rb",  label: "Beginner",      popular: false, premium: false },
+  { value: "5rb",  label: null,            popular: false, premium: false },
+  { value: "10rb", label: "🔥 Popular",    popular: true,  premium: false },
+  { value: "20rb", label: "💰 High Reward",popular: false, premium: true  },
+];
 
 // ---- Gold palette constants ----
 const GOLD      = "#fbbf24";
@@ -23,7 +28,7 @@ function useOutsideClick(ref: React.RefObject<HTMLElement | null>, handler: () =
 }
 
 export default function Landing() {
-  const [selectedServer, setSelectedServer]   = useState("5%");
+  const [selectedServer, setSelectedServer]   = useState("10rb");
   const [appliedColorId, setAppliedColorId]   = useState(DEFAULT_COLOR_ID);
   const [pendingColorId, setPendingColorId]   = useState(DEFAULT_COLOR_ID);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -139,44 +144,51 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Server selection */}
-          <div className="flex items-center gap-3 mt-6">
-            {SERVERS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSelectedServer(s)}
-                className={`px-7 py-2.5 rounded-full font-bold text-base tracking-wide border transition-all duration-200 ${
-                  selectedServer === s ? "server-btn-selected" : ""
-                }`}
-                style={
-                  selectedServer === s
-                    ? {}
-                    : {
-                        background: "rgba(255,255,255,0.04)",
-                        borderColor: `${GOLD_GLOW}0.18)`,
-                        color: "#a08040",
-                      }
-                }
-                onMouseEnter={(e) => {
-                  if (selectedServer !== s) {
-                    (e.currentTarget as HTMLElement).style.borderColor = `${GOLD_GLOW}0.4)`;
-                    (e.currentTarget as HTMLElement).style.color = GOLD;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedServer !== s) {
-                    (e.currentTarget as HTMLElement).style.borderColor = `${GOLD_GLOW}0.18)`;
-                    (e.currentTarget as HTMLElement).style.color = "#a08040";
-                  }
-                }}
-              >
-                {s}
-              </button>
-            ))}
+          {/* Bet selection */}
+          <div className="flex items-center gap-3 mt-6 flex-wrap justify-center">
+            {BETS.map((bet) => {
+              const isSelected = selectedServer === bet.value;
+              const isPopular  = bet.popular;
+              const isPremium  = bet.premium;
+              return (
+                <div key={bet.value} className="flex flex-col items-center gap-1">
+                  {/* Label badge above button */}
+                  {bet.label ? (
+                    <span
+                      className={`text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-full ${
+                        isPopular ? "bet-label-popular" : "bet-label-premium"
+                      }`}
+                    >
+                      {bet.label}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] opacity-0 select-none">_</span>
+                  )}
+                  <button
+                    onClick={() => setSelectedServer(bet.value)}
+                    className={`bet-btn ${
+                      isSelected
+                        ? isPopular
+                          ? "bet-btn-popular-selected"
+                          : isPremium
+                          ? "bet-btn-premium-selected"
+                          : "bet-btn-selected"
+                        : isPopular
+                        ? "bet-btn-popular-idle"
+                        : isPremium
+                        ? "bet-btn-premium-idle"
+                        : "bet-btn-idle"
+                    }`}
+                  >
+                    {bet.value}
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           {/* JOIN GAME */}
-          <button className="join-btn mt-7 px-12 py-4 rounded-2xl text-xl tracking-wider uppercase">
+          <button className="join-btn join-btn-pulse mt-7 px-14 py-5 rounded-2xl text-2xl tracking-widest uppercase font-black">
             ▶ JOIN GAME
           </button>
 
