@@ -57,10 +57,11 @@ function mkSnake(id: string, name: string, x: number, y: number, a: number, colo
   for (let i = 0; i < 16; i++) pos.push({ x: x - Math.cos(a)*i*SEG_SPACE, y: y - Math.sin(a)*i*SEG_SPACE });
   return { id, name, pos, angle: a, color, betAmount: bet, saldo, alive: true, isPlayer, boosting: false, winProgress: 0, winTimer: 0, zoneWarning: 0, tgtAngle: a, tgtTimer: 0, botBoostTimer: 0 };
 }
-function initState(username: string, bet: number, saldo: number, color: string): GState {
+function initState(username: string, bet: number, _saldo: number, color: string): GState {
   const snakes: Snake[] = [];
   const pa = Math.random() * Math.PI * 2;
-  snakes.push(mkSnake("player", username, ZC.x + Math.cos(pa)*120, ZC.y + Math.sin(pa)*120, pa + Math.PI, color, bet, saldo, true));
+  // Player starts in-game with exactly their bet amount as saldo
+  snakes.push(mkSnake("player", username, ZC.x + Math.cos(pa)*120, ZC.y + Math.sin(pa)*120, pa + Math.PI, color, bet, bet, true));
   for (let i = 0; i < BOT_NAMES.length; i++) {
     const a = (i / BOT_NAMES.length) * Math.PI * 2;
     const r = 250 + Math.random() * 400;
@@ -72,12 +73,15 @@ function initState(username: string, bet: number, saldo: number, color: string):
 // ── Kill + bubble drop ────────────────────────────────────────────────────────
 function killSnake(s: Snake, state: GState) {
   s.alive = false;
-  const drop = s.betAmount * 0.8;
-  const cnt = 8 + Math.floor(Math.random() * 5);
+  // Drop 80% of bet as bubbles, each rounded to nearest 500
+  const totalDrop = Math.max(1000, Math.round(s.betAmount * 0.8 / 1000) * 1000);
+  const cnt = Math.max(3, Math.min(10, Math.floor(totalDrop / 1000)));
+  const rawPerBubble = totalDrop / cnt;
+  const perBubble = Math.max(500, Math.round(rawPerBubble / 500) * 500);
   for (let i = 0; i < cnt; i++) {
     const a = (i/cnt)*Math.PI*2 + (Math.random()-0.5);
     const spd = 0.07 + Math.random()*0.14;
-    state.bubbles.push({ id: `b${Date.now()}${i}`, pos: { ...s.pos[0] }, vel: { x: Math.cos(a)*spd, y: Math.sin(a)*spd }, value: Math.round(drop/cnt), r: 9 + Math.floor(drop/cnt/150), life: BUBBLE_LIFE, maxLife: BUBBLE_LIFE });
+    state.bubbles.push({ id: `b${Date.now()}${i}`, pos: { ...s.pos[0] }, vel: { x: Math.cos(a)*spd, y: Math.sin(a)*spd }, value: perBubble, r: 9 + Math.floor(perBubble/800), life: BUBBLE_LIFE, maxLife: BUBBLE_LIFE });
   }
 }
 
@@ -138,7 +142,7 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
     else { player.winTimer += dt; player.winProgress = Math.min(1, player.winTimer / WIN_MS); }
     if (player.winProgress >= 1) {
       state.status = "win";
-      state.winEarnings = player.saldo + Math.round(player.betAmount * 1.8);
+      state.winEarnings = Math.round((player.saldo + player.betAmount * 1.8) / 1000) * 1000;
       return;
     }
   }
@@ -164,9 +168,9 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
         if (dist(bot.pos[0], player.pos[i]) < SR*1.4) {
           killSnake(bot, state);
           if (player.alive) {
-            const gain = Math.round(bot.betAmount * 0.15);
+            const gain = Math.max(1000, Math.round(bot.betAmount * 0.15 / 1000) * 1000);
             player.saldo += gain;
-            state.floats.push({ id: `f${Date.now()}`, wx: player.pos[0].x, wy: player.pos[0].y - 30, text: `+${gain}`, life: FLOAT_LIFE, maxLife: FLOAT_LIFE });
+            state.floats.push({ id: `f${Date.now()}`, wx: player.pos[0].x, wy: player.pos[0].y - 30, text: `+Rp${gain.toLocaleString("id-ID")}`, life: FLOAT_LIFE, maxLife: FLOAT_LIFE });
           }
           break;
         }
@@ -187,7 +191,7 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
       if (dist(player.pos[0], state.bubbles[i].pos) < SR + state.bubbles[i].r) {
         const val = state.bubbles[i].value;
         player.saldo += val;
-        state.floats.push({ id: `f${Date.now()}${i}`, wx: player.pos[0].x, wy: player.pos[0].y - 20, text: `+${val >= 1000 ? `${(val/1000).toFixed(1)}rb` : val}`, life: FLOAT_LIFE, maxLife: FLOAT_LIFE });
+        state.floats.push({ id: `f${Date.now()}${i}`, wx: player.pos[0].x, wy: player.pos[0].y - 20, text: `+Rp${val.toLocaleString("id-ID")}`, life: FLOAT_LIFE, maxLife: FLOAT_LIFE });
         state.bubbles.splice(i, 1);
       }
     }
@@ -197,7 +201,7 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
   state.floats = state.floats.filter((f) => f.life > 0);
 
   const aliveAll = state.snakes.filter((s) => s.alive);
-  if (aliveAll.length === 1 && aliveAll[0].isPlayer) { state.status = "win"; state.winEarnings = (player?.saldo ?? 0) + Math.round((player?.betAmount ?? 0) * 2); }
+  if (aliveAll.length === 1 && aliveAll[0].isPlayer) { state.status = "win"; state.winEarnings = Math.round(((player?.saldo ?? 0) + (player?.betAmount ?? 0) * 2) / 1000) * 1000; }
   else if (!player?.alive) state.status = "lose";
 }
 
@@ -269,7 +273,7 @@ function render(canvas: HTMLCanvasElement, state: GState) {
 
     // Saldo glass box above head
     const boxY = hy - r*3.2;
-    const saldoStr = s.saldo >= 1000 ? `Rp${(s.saldo/1000).toFixed(1)}rb` : `Rp${s.saldo}`;
+    const saldoStr = s.saldo >= 1000000 ? `Rp${(s.saldo/1000000).toFixed(1)}jt` : s.saldo >= 1000 ? `Rp${(s.saldo/1000).toFixed(0)}rb` : `Rp${s.saldo}`;
     const nameStr = s.name;
     const fontSize = Math.max(9, 10.5*scale);
     ctx.font = `bold ${fontSize}px Inter,sans-serif`;
@@ -416,7 +420,7 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
   const rafRef = useRef(0);
   const lastTRef = useRef(0);
 
-  const [hud, setHud] = useState({ saldo: playerSaldo, alive: 10, winPct: 0, status: "playing" as GState["status"] });
+  const [hud, setHud] = useState({ saldo: betAmount, alive: 10, winPct: 0, status: "playing" as GState["status"] });
   const [boosting, setBoosting] = useState(false);
   const [cashoutHeld, setCashoutHeld] = useState(false);
   const [winFlash, setWinFlash] = useState(false);
@@ -486,9 +490,9 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
       <div className="absolute top-4 left-4 flex flex-col gap-2" style={{ zIndex: 10 }}>
         <div className="rounded-xl px-4 py-2.5 text-sm font-bold flex items-center gap-3" style={{ background: "rgba(0,0,0,0.7)", border: `1px solid ${GG}0.25)`, color: GOLD }}>
           <div className="flex flex-col gap-0.5">
-            <span style={{ color: "#7a6030", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.12em" }}>Saldo Kamu</span>
+            <span style={{ color: "#7a6030", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.12em" }}>Saldo Game</span>
             <span style={{ textShadow: `0 0 10px ${GG}0.6)`, fontSize: 15 }}>
-              {hud.saldo >= 1000 ? `Rp${(hud.saldo/1000).toFixed(1)}rb` : `Rp${hud.saldo}`}
+              {hud.saldo >= 1000000 ? `Rp${(hud.saldo/1000000).toFixed(1)}jt` : hud.saldo >= 1000 ? `Rp${(hud.saldo/1000).toFixed(0)}rb` : `Rp${hud.saldo}`}
             </span>
           </div>
         </div>

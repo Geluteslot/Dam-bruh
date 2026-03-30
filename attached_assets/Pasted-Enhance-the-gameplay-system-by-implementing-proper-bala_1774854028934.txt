@@ -1,0 +1,127 @@
+Enhance the gameplay system by implementing proper balance deduction, bet handling, and in-game balance display.
+
+IMPORTANT:
+- DO NOT change existing UI layout
+- ONLY improve gameplay logic and balance system
+- Use Indonesian language for all UI text
+- All values must be clean and rounded (no odd numbers)
+
+========================
+SISTEM SALDO PLAYER
+========================
+
+- Setiap player memiliki saldo utama (contoh: Rp50.000)
+
+- Saldo utama ditampilkan di dashboard / UI utama
+
+========================
+POTONG SALDO SAAT PILIH ROOM
+========================
+
+Ketika player memilih room:
+
+- 3rb → potong Rp3.000
+- 5rb → potong Rp5.000
+- 10rb → potong Rp10.000
+- 20rb → potong Rp20.000
+
+ATURAN:
+- Potong saldo SEBELUM masuk game
+- Jika saldo tidak cukup:
+  → tampilkan pesan: "Saldo tidak mencukupi"
+
+Contoh:
+Saldo awal: Rp50.000
+Masuk room 5rb → saldo jadi Rp45.000
+
+========================
+SALDO DI DALAM GAME
+========================
+
+Saat game dimulai:
+
+- Tampilkan saldo BET di atas kepala cacing
+- Contoh:
+  Rp10.000 (nilai awal dari bet)
+
+Desain:
+- Kotak kecil (floating UI)
+- Background semi transparan (glass effect)
+- Border gold
+- Text jelas
+
+========================
+PERTAMBAHAN SALDO IN-GAME
+========================
+
+Saldo di atas cacing bertambah saat:
+
+1. Mengalahkan player lain
+2. Mengambil bubble
+
+Contoh:
+Rp10.000 → Rp12.000 → Rp15.000
+
+Animasi:
+- Tambahkan efek "+2.000"
+- Floating text naik lalu fade out
+
+========================
+SISTEM BUNUH PLAYER
+========================
+
+Saat player membunuh player lain:
+
+- Mendapatkan:
+  - sebagian saldo lawan (dari bubble)
+  - bonus tambahan (opsional)
+
+Gunakan sistem:
+- Drop 80% dari bet lawan menjadi bubble
+
+========================
+SISTEM KALAH
+========================
+
+Jika player mati:
+- Saldo bet yang dibawa HILANG
+- Tidak kembali ke saldo utama
+
+========================
+SISTEM MENANG
+========================
+
+Jika player menang:
+
+- Saldo akhir di atas cacing:
+  → ditambahkan ke saldo utama
+
+Contoh:
+Saldo utama sebelum: Rp45.000  
+Menang dengan: Rp18.000  
+Saldo akhir: Rp63.000
+
+========================
+RESET GAME
+========================
+
+Setelah game selesai:
+- Reset saldo in-game
+- Kembali ke saldo utama
+
+========================
+VISUAL & FEEDBACK
+========================
+
+- Update saldo secara real-time
+- Gunakan animasi smooth
+- Highlight saat menang (gold glow)
+- Highlight saat kalah (fade merah)
+
+========================
+TUJUAN SISTEM
+========================
+
+- Membuat sistem lebih realistis
+- Memberikan rasa risiko & reward
+- Memperjelas perbedaan saldo utama dan saldo in-game

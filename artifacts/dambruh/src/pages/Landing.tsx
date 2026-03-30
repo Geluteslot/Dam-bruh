@@ -40,7 +40,7 @@ function useOutsideClick(ref: React.RefObject<HTMLElement | null>, handler: () =
 }
 
 export default function Landing() {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [selectedServer, setSelectedServer]   = useState("10rb");
   const [appliedColorId, setAppliedColorId]   = useState(DEFAULT_COLOR_ID);
   const [pendingColorId, setPendingColorId]   = useState(DEFAULT_COLOR_ID);
@@ -132,20 +132,26 @@ export default function Landing() {
   const handleJoinGame = () => {
     if (!user) { setModal("login"); return; }
     const bet = betAmountMap[selectedServer] ?? 10000;
+    if (user.balance < bet) {
+      setToast({ msg: "Saldo tidak mencukupi!", type: "lose" });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
     addTransaction({ username: user.username, type: "Masuk Game", amount: -bet, status: "Berhasil" });
     updateBalance(user.username, -bet);
+    refresh();
     setGamePhase("countdown");
   };
 
   const handleGameEnd = ({ won, earnings }: { won: boolean; earnings: number }) => {
     if (!user) return;
-    const bet = betAmountMap[selectedServer] ?? 10000;
     if (won) {
       addTransaction({ username: user.username, type: "Menang", amount: earnings, status: "Berhasil" });
       updateBalance(user.username, earnings);
+      refresh();
       setToast({ msg: `Kamu menang! +Rp${earnings.toLocaleString("id-ID")}`, type: "win" });
     } else {
-      addTransaction({ username: user.username, type: "Kalah", amount: -bet, status: "Berhasil" });
+      refresh();
       setToast({ msg: "Kamu kalah! Bubble terkumpul: Rp" + earnings.toLocaleString("id-ID"), type: "lose" });
     }
     setGamePhase("idle");
