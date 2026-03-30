@@ -4,11 +4,14 @@ import SnakePreview from "@/components/SnakePreview";
 import { SNAKE_COLORS, DEFAULT_COLOR_ID } from "@/lib/snakeColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { addTransaction } from "@/lib/transactions";
+import { updateBalance } from "@/lib/auth";
 import LoginModal from "@/components/modals/LoginModal";
 import RegisterModal from "@/components/modals/RegisterModal";
 import ForgotPasswordModal from "@/components/modals/ForgotPasswordModal";
 import ProfileModal from "@/components/modals/ProfileModal";
 import TransactionModal from "@/components/modals/TransactionModal";
+import CountdownScreen from "@/components/game/CountdownScreen";
+import GameArena from "@/components/game/GameArena";
 
 const BETS = [
   { value: "3rb",  label: "Pemula",       popular: false, premium: false },
@@ -23,6 +26,7 @@ const GOLD_DEEP = "#d97706";
 const GOLD_GLOW = "rgba(251,191,36,";
 
 type ModalType = "login" | "register" | "forgot" | "profile" | "history" | null;
+type GamePhase = "idle" | "countdown" | "playing";
 
 function useOutsideClick(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
   useEffect(() => {
@@ -43,6 +47,7 @@ export default function Landing() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [modal, setModal]                     = useState<ModalType>(null);
   const [toast, setToast]                     = useState<{ msg: string; type: "win" | "lose" } | null>(null);
+  const [gamePhase, setGamePhase]             = useState<GamePhase>("idle");
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const openPicker   = () => { setPendingColorId(appliedColorId); setShowColorPicker(true); };
@@ -62,19 +67,51 @@ export default function Landing() {
     if (!user) { setModal("login"); return; }
     const bet = betAmountMap[selectedServer] ?? 10000;
     addTransaction({ username: user.username, type: "Masuk Game", amount: -bet, status: "Berhasil" });
-    const isWin = Math.random() > 0.45;
-    const reward = Math.round(bet * (1.5 + Math.random() * 0.5));
-    setTimeout(() => {
-      addTransaction({
-        username: user.username,
-        type: isWin ? "Menang" : "Kalah",
-        amount: isWin ? reward : -Math.round(bet * 0.5),
-        status: "Berhasil",
-      });
-      setToast({ msg: isWin ? `Kamu menang! +Rp${reward.toLocaleString("id-ID")}` : `Kamu kalah!`, type: isWin ? "win" : "lose" });
-      setTimeout(() => setToast(null), 3000);
-    }, 1500);
+    updateBalance(user.username, -bet);
+    setGamePhase("countdown");
   };
+
+  const handleGameEnd = ({ won, earnings }: { won: boolean; earnings: number }) => {
+    if (!user) return;
+    const bet = betAmountMap[selectedServer] ?? 10000;
+    if (won) {
+      addTransaction({ username: user.username, type: "Menang", amount: earnings, status: "Berhasil" });
+      updateBalance(user.username, earnings);
+      setToast({ msg: `Kamu menang! +Rp${earnings.toLocaleString("id-ID")}`, type: "win" });
+    } else {
+      addTransaction({ username: user.username, type: "Kalah", amount: -bet, status: "Berhasil" });
+      setToast({ msg: "Kamu kalah! Bubble terkumpul: Rp" + earnings.toLocaleString("id-ID"), type: "lose" });
+    }
+    setGamePhase("idle");
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  if (gamePhase === "countdown" && user) {
+    return (
+      <div className="relative min-h-screen overflow-x-hidden" style={{ background: "#0d0900" }}>
+        <SnakeCanvas playerColorId={appliedColorId} />
+        <CountdownScreen
+          username={user.username}
+          selectedBet={selectedServer}
+          betAmount={betAmountMap[selectedServer] ?? 10000}
+          playerSaldo={user.balance}
+          onStart={() => setGamePhase("playing")}
+        />
+      </div>
+    );
+  }
+
+  if (gamePhase === "playing" && user) {
+    return (
+      <GameArena
+        username={user.username}
+        playerColor={appliedColor.color}
+        betAmount={betAmountMap[selectedServer] ?? 10000}
+        playerSaldo={user.balance}
+        onGameEnd={handleGameEnd}
+      />
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden" style={{ background: "#0d0900" }}>
