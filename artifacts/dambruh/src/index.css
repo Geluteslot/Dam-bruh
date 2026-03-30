@@ -291,6 +291,32 @@
   color: #fde68a;
   border: 1px solid rgba(217,119,6,0.5);
 }
+.bet-label-locked {
+  background: rgba(239,68,68,0.18);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.35);
+}
+
+/* Locked bet button (insufficient funds) */
+.bet-btn-locked {
+  background: rgba(239,68,68,0.06);
+  border-color: rgba(239,68,68,0.25);
+  color: rgba(248,113,113,0.45);
+  opacity: 0.65;
+  cursor: pointer;
+}
+.bet-btn-locked:hover {
+  border-color: rgba(239,68,68,0.45);
+  color: rgba(248,113,113,0.7);
+  transform: scale(1.02);
+}
+.bet-btn-locked-selected {
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.5);
+  box-shadow: 0 0 14px rgba(239,68,68,0.3), inset 0 0 8px rgba(239,68,68,0.08);
+  color: #f87171;
+  cursor: pointer;
+}
 
 /* ===== SERVER BUTTON — legacy kept for compat ===== */
 .server-btn-selected {
@@ -325,6 +351,16 @@
 }
 .join-btn:active {
   transform: translateY(0) scale(0.99);
+}
+.join-btn-disabled {
+  background: rgba(239,68,68,0.12);
+  color: #f87171;
+  font-weight: 900;
+  border: 1.5px solid rgba(239,68,68,0.35);
+  box-shadow: 0 0 14px rgba(239,68,68,0.2), 0 4px 12px rgba(0,0,0,0.4);
+  transition: all 0.28s ease;
+  cursor: not-allowed;
+  opacity: 0.85;
 }
 
 /* ===== LOGIN — gold outline button ===== */

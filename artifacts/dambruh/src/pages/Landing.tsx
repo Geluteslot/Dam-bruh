@@ -128,6 +128,9 @@ export default function Landing() {
   const previewColor = showColorPicker ? pendingColor : appliedColor;
 
   const betAmountMap: Record<string, number> = { "3rb": 3000, "5rb": 5000, "10rb": 10000, "20rb": 20000 };
+  const canAffordBet = (betValue: string) => !user || user.balance >= (betAmountMap[betValue] ?? 0);
+  const selectedBetAmount = betAmountMap[selectedServer] ?? 10000;
+  const isInsufficientFunds = !!user && user.balance < selectedBetAmount;
 
   const handleJoinGame = () => {
     if (!user) { setModal("login"); return; }
@@ -354,9 +357,14 @@ export default function Landing() {
               const isSelected = selectedServer === bet.value;
               const isPopular  = bet.popular;
               const isPremium  = bet.premium;
+              const isLocked   = !canAffordBet(bet.value);
               return (
                 <div key={bet.value} className="flex flex-col items-center gap-1">
-                  {bet.label ? (
+                  {isLocked ? (
+                    <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-full bet-label-locked">
+                      Saldo Kurang
+                    </span>
+                  ) : bet.label ? (
                     <span className={`text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-full ${isPopular ? "bet-label-popular" : "bet-label-premium"}`}>
                       {bet.label}
                     </span>
@@ -366,9 +374,11 @@ export default function Landing() {
                   <button
                     onClick={() => setSelectedServer(bet.value)}
                     className={`bet-btn ${
-                      isSelected
-                        ? isPopular ? "bet-btn-popular-selected" : isPremium ? "bet-btn-premium-selected" : "bet-btn-selected"
-                        : isPopular ? "bet-btn-popular-idle" : isPremium ? "bet-btn-premium-idle" : "bet-btn-idle"
+                      isLocked
+                        ? isSelected ? "bet-btn-locked-selected" : "bet-btn-locked"
+                        : isSelected
+                          ? isPopular ? "bet-btn-popular-selected" : isPremium ? "bet-btn-premium-selected" : "bet-btn-selected"
+                          : isPopular ? "bet-btn-popular-idle" : isPremium ? "bet-btn-premium-idle" : "bet-btn-idle"
                     }`}
                   >
                     {bet.value}
@@ -381,9 +391,10 @@ export default function Landing() {
           {/* JOIN GAME */}
           <button
             onClick={handleJoinGame}
-            className="join-btn join-btn-pulse mt-7 px-14 py-5 rounded-2xl text-2xl tracking-widest uppercase font-black"
+            disabled={isInsufficientFunds}
+            className={`join-btn mt-7 px-14 py-5 rounded-2xl text-2xl tracking-widest uppercase font-black ${isInsufficientFunds ? "join-btn-disabled" : "join-btn-pulse"}`}
           >
-            ▶ MASUK GAME
+            {isInsufficientFunds ? "⚠ SALDO TIDAK CUKUP" : "▶ MASUK GAME"}
           </button>
 
           {/* Stats */}
