@@ -1,0 +1,141 @@
+Enhance the in-game gameplay system with improved controls, cashout mechanics, and balance display.
+
+IMPORTANT:
+- DO NOT change layout structure
+- ONLY improve gameplay system
+- Use Indonesian language for all UI text
+
+========================
+KONTROL
+========================
+
+MOBILE:
+- Tambahkan joystick (analog) di kiri bawah
+- Player menggerakkan cacing dengan drag
+
+DESKTOP:
+- Gunakan mouse untuk arah
+
+========================
+TOMBOL AKSI
+========================
+
+1. BOOST
+- Posisi kanan bawah
+- Fungsi mempercepat cacing
+- Efek glow saat aktif
+
+2. HOLD TO CASHOUT
+- Tombol besar
+- Harus ditekan dan ditahan
+
+========================
+SISTEM CIRCLE CASHOUT
+========================
+
+- Di atas kepala cacing terdapat lingkaran progress
+
+Cara kerja:
+- Saat tombol "Hold to Cashout" ditekan:
+  → circle mulai terisi
+
+Durasi:
+- 8 detik sampai penuh
+
+Jika penuh:
+→ player langsung menang
+
+Reset jika:
+- tombol dilepas
+- player boost
+- ada musuh dekat
+
+Visual:
+- Circle berputar
+- Warna gold glowing
+- Semakin penuh semakin terang
+
+========================
+SALDO DI ATAS CACING
+========================
+
+- Tampilkan saldo (balance) di atas kepala cacing
+- Gunakan kotak kecil (floating UI box)
+
+Isi:
+- Nominal saldo (contoh: $12,500)
+
+Desain:
+- Background semi transparan (glass effect)
+- Border tipis warna gold
+- Text putih atau gold
+- Rounded corner
+
+Animasi:
+- Saat saldo bertambah:
+  → muncul efek "+500" atau "+1000"
+  → animasi naik ke atas lalu fade out
+
+Posisi:
+- Tepat di atas kepala cacing
+- Tidak mengganggu circle cashout (posisi disusun rapi)
+
+Update:
+- Saldo berubah real-time saat:
+  - Mengambil bubble
+  - Mengalahkan player
+
+========================
+SISTEM BUBBLE
+========================
+
+Saat player mati:
+- Drop 80% dari bet
+- Dibagi 8–12 bubble
+
+Bubble:
+- Glow
+- Menyebar
+- Bisa diambil player lain
+
+Efek:
+- Menambah saldo player
+
+========================
+ARENA
+========================
+
+- Zona lingkaran menyusut ±2 menit
+- Keluar zona → kalah
+
+========================
+KONDISI MENANG
+========================
+
+1. Cashout berhasil (8 detik)
+ATAU
+2. Player terakhir hidup
+
+========================
+VISUAL & FEEL
+========================
+
+- Background dinamis (banyak cacing bergerak)
+- Efek glow gold
+- Animasi smooth
+- UI tetap jelas
+
+========================
+EFEK TAMBAHAN
+========================
+
+- Efek saat ambil bubble (pop + glow)
+- Efek saat cashout berhasil (flash gold)
+- Efek saat kalah (fade out)
+
+========================
+PERFORMA
+========================
+
+- Ringan
+- Smooth di mobile & desktop
