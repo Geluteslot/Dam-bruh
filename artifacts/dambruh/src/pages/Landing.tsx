@@ -64,32 +64,28 @@ export default function Landing() {
     return () => clearInterval(id);
   }, []);
 
-  // ── Total winnings (starts 1rb at 00:00, grows ~150/sec, resets midnight) ──
+  // ── Total winnings (starts 1.000 at 00:00, grows every 5s, resets midnight) ──
   const calcBase = () => {
     const now = new Date();
     const secsToday = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    return 1000 + secsToday * 148;
+    return 1000 + Math.floor(secsToday / 5) * 740;
   };
   const [totalWinnings, setTotalWinnings] = useState(calcBase);
   useEffect(() => {
     const id = setInterval(() => {
       const now = new Date();
-      if (now.getHours() === 0 && now.getMinutes() === 0 && now.getSeconds() === 0) {
+      if (now.getHours() === 0 && now.getMinutes() === 0 && now.getSeconds() < 6) {
         setTotalWinnings(1000);
         return;
       }
-      const inc = 80 + Math.floor(Math.random() * 160);
+      const inc = 400 + Math.floor(Math.random() * 680);
       setTotalWinnings((p) => p + inc);
-    }, 1000);
+    }, 5000);
     return () => clearInterval(id);
   }, []);
 
-  const fmtWinnings = (v: number) => {
-    if (v >= 1_000_000_000) return `Rp${(v / 1_000_000_000).toFixed(1).replace(".", ",")}M`;
-    if (v >= 1_000_000)     return `Rp${(v / 1_000_000).toFixed(1).replace(".", ",")}jt`;
-    if (v >= 1_000)         return `Rp${Math.round(v / 1000).toLocaleString("id-ID")}rb`;
-    return `Rp${v}`;
-  };
+  const fmtWinnings = (v: number) =>
+    `Rp.${v.toLocaleString("id-ID")}`;
 
   const pickerRef = useRef<HTMLDivElement>(null);
 
