@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { getGameSettings } from "@/lib/gameSettings";
 
 // ── Luck / Win-Loss Tracking ──────────────────────────────────────────────────
 type LuckStatus = "HOKI" | "NORMAL" | "SIAL";
@@ -16,13 +17,47 @@ function recordWL(won: boolean) {
 }
 function getWinrate(): number { const { w, l } = getWLRec(); return (w + l) > 0 ? w / (w + l) : 0.5; }
 function determineInitialLuck(playerSaldo: number, betAmount: number): LuckStatus {
-  if (playerSaldo < 10_000 || playerSaldo < betAmount * 1.5) return "HOKI"; // Anti-bangkrut
+  if (playerSaldo < 10_000 || playerSaldo < betAmount * 1.5) return "HOKI";
   const wr = getWinrate();
-  if (wr < 0.33) return "HOKI";       // Losing streak → help
-  if (wr > 0.62) return Math.random() < 0.55 ? "SIAL" : "NORMAL"; // Winning streak → balance
+  if (wr < 0.33) return "HOKI";
+  if (wr > 0.62) return Math.random() < 0.55 ? "SIAL" : "NORMAL";
   const r = Math.random();
   return r < 0.38 ? "HOKI" : r < 0.72 ? "NORMAL" : "SIAL";
 }
+
+// ── Sound Engine (Web Audio API) ──────────────────────────────────────────────
+let _ac: AudioContext | null = null;
+function getAC(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  try {
+    if (!_ac) _ac = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    return _ac;
+  } catch { return null; }
+}
+function tone(freq: number, type: OscillatorType, dur: number, vol: number, freqEnd?: number) {
+  try {
+    const ac = getAC(); if (!ac) return;
+    if (ac.state === "suspended") ac.resume().catch(() => {});
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.connect(g); g.connect(ac.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ac.currentTime);
+    if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, ac.currentTime + dur);
+    g.gain.setValueAtTime(vol, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+    osc.start(); osc.stop(ac.currentTime + dur);
+  } catch {}
+}
+const SFX = {
+  bubble:      () => tone(600 + Math.random() * 400, "sine",     0.05,  0.1),
+  collision:   () => { tone(160, "sawtooth", 0.14, 0.38, 55); setTimeout(() => tone(80, "square", 0.28, 0.22, 40), 70); },
+  win:         () => { tone(523,"sine",0.17,0.32); setTimeout(()=>tone(659,"sine",0.17,0.34),180); setTimeout(()=>tone(784,"sine",0.22,0.38),360); setTimeout(()=>tone(1046,"sine",0.5,0.4),580); },
+  lose:        () => { tone(330,"sine",0.28,0.3,180); setTimeout(()=>tone(200,"sine",0.45,0.26,110),260); },
+  cashoutTick: () => tone(1200, "sine", 0.035, 0.065, 1300),
+  start:       () => { tone(440,"sine",0.12,0.24); setTimeout(()=>tone(660,"sine",0.14,0.3),140); },
+  zoneWarn:    () => tone(200, "square", 0.08, 0.12, 220),
+};
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Vec2 { x: number; y: number; }
@@ -37,8 +72,9 @@ interface Snake {
 }
 interface Bubble { id: string; pos: Vec2; vel: Vec2; value: number; r: number; life: number; maxLife: number; }
 interface FloatText { id: string; wx: number; wy: number; text: string; life: number; maxLife: number; }
+interface Particle { id: string; pos: Vec2; vel: Vec2; life: number; maxLife: number; color: string; r: number; }
 interface GState {
-  snakes: Snake[]; bubbles: Bubble[]; floats: FloatText[];
+  snakes: Snake[]; bubbles: Bubble[]; floats: FloatText[]; particles: Particle[];
   zoneR: number; elapsed: number;
   status: "playing" | "win" | "lose";
   winEarnings: number; loseReason: string;
@@ -47,7 +83,7 @@ interface GState {
 // ── Constants ─────────────────────────────────────────────────────────────────
 const ZC: Vec2 = { x: 1000, y: 1000 };
 const ZONE_START = 860; const ZONE_END = 160; const ZONE_MS = 120_000;
-const SPD = 0.17; const BOOST_SPD = 0.34; const TURN = 0.007;
+const SPD = 0.23; const BOOST_SPD = 0.46; const TURN = 0.009;
 const WIN_MS = 8000; const ENEMY_R = 130;
 const SEG_SPACE = 9; const MAX_SEG = 28; const SR = 13;
 const BOT_NAMES = ["Budi","Sari","Andi","Dewi","Rizky","Putri","Hadi","Nina","Fajar"];
@@ -75,19 +111,41 @@ function initState(username: string, bet: number, _saldo: number, color: string)
     const r = 250 + Math.random() * 400;
     snakes.push(mkSnake(`b${i}`, BOT_NAMES[i], ZC.x + Math.cos(a)*r, ZC.y + Math.sin(a)*r, a + Math.PI + (Math.random()-0.5)*0.8, BOT_COLORS[i], bet, bet*(4 + Math.floor(Math.random()*16)), false));
   }
-  return { snakes, bubbles: [], floats: [], zoneR: ZONE_START, elapsed: 0, status: "playing", winEarnings: 0, loseReason: "" };
+  return { snakes, bubbles: [], floats: [], particles: [], zoneR: ZONE_START, elapsed: 0, status: "playing", winEarnings: 0, loseReason: "" };
 }
 
-// ── Kill + bubble drop ────────────────────────────────────────────────────────
+// ── Kill + exact bubble drop + explosion ─────────────────────────────────────
 function killSnake(s: Snake, state: GState) {
   s.alive = false;
-  const totalDrop = Math.max(1000, Math.round(s.betAmount * 0.8 / 1000) * 1000);
-  const cnt = Math.max(3, Math.min(10, Math.floor(totalDrop / 1000)));
-  const perBubble = Math.max(500, Math.round((totalDrop / cnt) / 500) * 500);
+  const totalDrop = Math.max(1000, Math.round(s.saldo * 0.75 / 500) * 500);
+  const cnt = Math.min(12, Math.max(3, Math.floor(totalDrop / 1500)));
+  const base = Math.floor(totalDrop / cnt);
+  let remaining = totalDrop;
   for (let i = 0; i < cnt; i++) {
-    const a = (i/cnt)*Math.PI*2 + (Math.random()-0.5);
-    const spd = 0.07 + Math.random()*0.14;
-    state.bubbles.push({ id: `b${Date.now()}${i}`, pos: { ...s.pos[0] }, vel: { x: Math.cos(a)*spd, y: Math.sin(a)*spd }, value: perBubble, r: 9 + Math.floor(perBubble/800), life: BUBBLE_LIFE, maxLife: BUBBLE_LIFE });
+    const value = i === cnt - 1 ? Math.max(500, remaining) : Math.max(500, base);
+    remaining -= (i === cnt - 1 ? 0 : base);
+    const a = (i / cnt) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+    const spd = 0.09 + Math.random() * 0.18;
+    state.bubbles.push({
+      id: `bk${Date.now()}${i}`,
+      pos: { ...s.pos[0] },
+      vel: { x: Math.cos(a) * spd, y: Math.sin(a) * spd },
+      value, r: 9 + Math.min(8, Math.floor(value / 800)),
+      life: BUBBLE_LIFE, maxLife: BUBBLE_LIFE,
+    });
+  }
+  // Explosion particles
+  const pc = 16 + Math.floor(Math.random() * 12);
+  for (let i = 0; i < pc; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const spd2 = 0.12 + Math.random() * 0.38;
+    state.particles.push({
+      id: `px${Date.now()}${i}`,
+      pos: { ...s.pos[0] },
+      vel: { x: Math.cos(a) * spd2, y: Math.sin(a) * spd2 },
+      life: 500 + Math.random() * 600, maxLife: 1100,
+      color: s.color, r: 3 + Math.random() * 6,
+    });
   }
 }
 
@@ -114,7 +172,7 @@ function moveSnake(s: Snake, dt: number, tgtA: number, boost: boolean) {
   s.boosting = boost;
 }
 
-// ── Update (with luck support) ────────────────────────────────────────────────
+// ── Update ────────────────────────────────────────────────────────────────────
 function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashoutHeld: boolean, joystickDir: Vec2, luck: LuckStatus) {
   if (state.status !== "playing") return;
   state.elapsed += dt;
@@ -140,10 +198,7 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
     } else { s.zoneWarning = 0; }
   }
 
-  // ── Win circle with luck modifiers ──
   if (player) {
-    // HOKI: smaller enemy detection zone (easier to cashout)
-    // SIAL: larger enemy detection zone (harder)
     const luckEnemyR = luck === "HOKI" ? ENEMY_R * 0.72 : luck === "SIAL" ? ENEMY_R * 1.35 : ENEMY_R;
     const luckFillSpeed = luck === "HOKI" ? 1.2 : luck === "SIAL" ? 0.82 : 1.0;
     const enemyNear = state.snakes.some((s) => !s.isPlayer && s.alive && dist(s.pos[0], player.pos[0]) < luckEnemyR);
@@ -157,7 +212,6 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
       return;
     }
 
-    // ── SIAL drama: near-win (85–98%), occasionally rush nearest bot toward player ──
     if (luck === "SIAL" && player.winProgress > 0.82 && player.winProgress < 0.99) {
       const dramaCh = (dt / 3800) * ((player.winProgress - 0.82) / 0.17);
       if (Math.random() < dramaCh) {
@@ -171,7 +225,6 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
     }
   }
 
-  // ── Collision: player vs bots ──
   if (player) {
     const ph = player.pos[0];
     for (const bot of state.snakes) {
@@ -184,7 +237,6 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
     }
   }
 
-  // ── Collision: bots vs player body ──
   if (player?.alive) {
     for (const bot of state.snakes) {
       if (!bot.alive || bot.isPlayer) continue;
@@ -202,7 +254,6 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
     }
   }
 
-  // ── Bubbles ──
   for (const b of state.bubbles) {
     b.pos.x += b.vel.x*dt; b.pos.y += b.vel.y*dt;
     b.vel.x *= Math.pow(0.992, dt/16); b.vel.y *= Math.pow(0.992, dt/16);
@@ -224,6 +275,16 @@ function update(state: GState, dt: number, mouseW: Vec2, boost: boolean, cashout
   for (const f of state.floats) f.life -= dt;
   state.floats = state.floats.filter((f) => f.life > 0);
 
+  // Update particles (explosions)
+  for (const p of state.particles) {
+    p.pos.x += p.vel.x * dt;
+    p.pos.y += p.vel.y * dt;
+    p.vel.x *= Math.pow(0.984, dt / 16);
+    p.vel.y *= Math.pow(0.984, dt / 16);
+    p.life -= dt;
+  }
+  state.particles = state.particles.filter((p) => p.life > 0);
+
   const aliveAll = state.snakes.filter((s) => s.alive);
   if (aliveAll.length === 1 && aliveAll[0].isPlayer) { state.status = "win"; state.winEarnings = Math.round(((player?.saldo ?? 0) + (player?.betAmount ?? 0) * 2) / 1000) * 1000; }
   else if (!player?.alive) state.status = "lose";
@@ -241,20 +302,35 @@ function render(canvas: HTMLCanvasElement, state: GState) {
 
   ctx.fillStyle = "#080400"; ctx.fillRect(0, 0, W, H);
 
+  // Grid
   ctx.strokeStyle = "rgba(251,191,36,0.04)"; ctx.lineWidth = 1;
   const gs = 60*scale;
   const ox = ((-camX*scale)%gs+gs)%gs, oy = ((-camY*scale)%gs+gs)%gs;
   for (let x = ox-gs; x < W+gs; x += gs) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for (let y = oy-gs; y < H+gs; y += gs) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
+  // RED battle zone
   const zsx = sx(ZC.x), zsy = sy(ZC.y), zsr = state.zoneR*scale;
-  ctx.save(); ctx.shadowBlur = 20*scale; ctx.shadowColor = "rgba(251,191,36,0.55)";
-  ctx.strokeStyle = "rgba(251,191,36,0.65)"; ctx.lineWidth = 2.5;
-  ctx.beginPath(); ctx.arc(zsx, zsy, zsr, 0, Math.PI*2); ctx.stroke(); ctx.restore();
-  ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H);
-  ctx.arc(zsx, zsy, zsr, 0, Math.PI*2, true);
-  ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fill("evenodd"); ctx.restore();
 
+  // Outer darkness
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0,0,W,H);
+  ctx.arc(zsx, zsy, zsr, 0, Math.PI*2, true);
+  ctx.fillStyle = "rgba(0,0,0,0.62)"; ctx.fill("evenodd");
+  ctx.restore();
+
+  // Pulsing red glow ring
+  ctx.save();
+  ctx.strokeStyle = `rgba(239,68,68,${0.07 + 0.055 * Math.sin(Date.now() / 380)})`;
+  ctx.lineWidth = 16*scale;
+  ctx.beginPath(); ctx.arc(zsx, zsy, zsr, 0, Math.PI*2); ctx.stroke();
+  // Sharp border
+  ctx.shadowBlur = 22*scale; ctx.shadowColor = "rgba(239,68,68,0.6)";
+  ctx.strokeStyle = "rgba(239,68,68,0.8)"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(zsx, zsy, zsr, 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
+
+  // Bubbles
   for (const b of state.bubbles) {
     const bx = sx(b.pos.x), by = sy(b.pos.y), br = b.r*scale;
     const alpha = Math.min(1, b.life/(b.maxLife*0.3));
@@ -269,6 +345,7 @@ function render(canvas: HTMLCanvasElement, state: GState) {
     }
   }
 
+  // Snakes
   for (const s of state.snakes) {
     if (!s.alive || s.pos.length < 2) continue;
     const r = SR*scale;
@@ -333,6 +410,7 @@ function render(canvas: HTMLCanvasElement, state: GState) {
     }
   }
 
+  // Float texts
   for (const f of state.floats) {
     const progress = 1 - f.life/f.maxLife;
     const fy = sy(f.wy) - progress*40*scale;
@@ -343,6 +421,20 @@ function render(canvas: HTMLCanvasElement, state: GState) {
     ctx.fillStyle = `rgba(251,191,36,${alpha})`;
     ctx.shadowBlur = 10*scale; ctx.shadowColor = `rgba(251,191,36,${alpha*0.7})`;
     ctx.fillText(f.text, sx(f.wx), fy);
+    ctx.restore();
+  }
+
+  // Explosion particles
+  for (const p of state.particles) {
+    const alpha = p.life / p.maxLife;
+    const pr = Math.max(0.5, p.r * scale * (0.4 + 0.6 * alpha));
+    const px2 = sx(p.pos.x), py2 = sy(p.pos.y);
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.88;
+    ctx.fillStyle = p.color;
+    ctx.shadowBlur = 8 * scale * alpha;
+    ctx.shadowColor = p.color;
+    ctx.beginPath(); ctx.arc(px2, py2, pr, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 }
@@ -356,7 +448,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 // ── Joystick ──────────────────────────────────────────────────────────────────
-function Joystick({ onDir }: { onDir: (dx: number, dy: number) => void }) {
+function Joystick({ onDir, side }: { onDir: (dx: number, dy: number) => void; side: "left" | "right" }) {
   const baseRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<{ cx: number; cy: number; id: number } | null>(null);
@@ -389,9 +481,10 @@ function Joystick({ onDir }: { onDir: (dx: number, dy: number) => void }) {
     thumbRef.current.style.transform = "translate(0px,0px)";
     onDir(0, 0);
   };
+  const pos = side === "left" ? { left: 28, bottom: 28 } : { right: 28, bottom: 28 };
   return (
     <div ref={baseRef} className="absolute"
-      style={{ left: 28, bottom: 28, width: 108, height: 108, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "2px solid rgba(251,191,36,0.25)", touchAction: "none", zIndex: 12, display: "flex", alignItems: "center", justifyContent: "center" }}
+      style={{ ...pos, width: 108, height: 108, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "2px solid rgba(251,191,36,0.25)", touchAction: "none", zIndex: 12, display: "flex", alignItems: "center", justifyContent: "center" }}
       onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onEnd} onTouchCancel={onEnd}>
       <div ref={thumbRef} style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(251,191,36,0.3)", border: "2px solid rgba(251,191,36,0.6)", transition: "transform 30ms linear", pointerEvents: "none", boxShadow: "0 0 14px rgba(251,191,36,0.35)" }} />
     </div>
@@ -417,23 +510,33 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
   const lastTRef     = useRef(0);
   const prevWinPctRef= useRef(0);
 
-  // ── Luck system ──────────────────────────────────────────────────────────
+  // Settings
+  const settings = getGameSettings();
+
+  // Sound tracking refs
+  const prevAliveRef      = useRef(10);
+  const prevBubbleCountRef= useRef(0);
+  const lastBubbleSndRef  = useRef(0);
+  const prevStatusRef     = useRef<GState["status"]>("playing");
+  const prevWinPct10Ref   = useRef(0);
+
+  // Luck system
   const luckRef         = useRef<LuckStatus>(determineInitialLuck(playerSaldo, betAmount));
   const luckTimerRef    = useRef(0);
   const luckDurationRef = useRef((5 + Math.random() * 10) * 60_000);
 
-  // ── Bubble auto-spawn ──────────────────────────────────────────────────────
+  // Bubble auto-spawn
   const bubbleSpawnTimerRef = useRef(2000 + Math.random() * 2000);
 
-  const [hud, setHud]               = useState({ saldo: betAmount, alive: 10, winPct: 0, status: "playing" as GState["status"] });
-  const [boosting, setBoosting]     = useState(false);
+  const [hud, setHud]                 = useState({ saldo: betAmount, alive: 10, winPct: 0, status: "playing" as GState["status"] });
+  const [boosting, setBoosting]       = useState(false);
   const [cashoutHeld, setCashoutHeld] = useState(false);
-  const [winFlash, setWinFlash]     = useState(false);
-  const [nearMiss, setNearMiss]     = useState(false);
+  const [winFlash, setWinFlash]       = useState(false);
+  const [nearMiss, setNearMiss]       = useState(false);
 
-  const setBoost   = useCallback((v: boolean) => { boostRef.current = v; setBoosting(v); }, []);
-  const setCashout = useCallback((v: boolean) => { cashoutRef.current = v; setCashoutHeld(v); }, []);
-  const setJoystick= useCallback((dx: number, dy: number) => { joystickRef.current = { x: dx, y: dy }; }, []);
+  const setBoost    = useCallback((v: boolean) => { boostRef.current = v; setBoosting(v); }, []);
+  const setCashout  = useCallback((v: boolean) => { cashoutRef.current = v; setCashoutHeld(v); }, []);
+  const setJoystick = useCallback((dx: number, dy: number) => { joystickRef.current = { x: dx, y: dy }; }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -441,6 +544,10 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
     const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
     resize();
     window.addEventListener("resize", resize);
+
+    // Initialize AudioContext on first user gesture (component mounts after user taps)
+    getAC();
+    SFX.start();
 
     const onMM = (e: MouseEvent) => {
       const s = stateRef.current;
@@ -456,12 +563,11 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
       const dt = Math.min(ts - (lastTRef.current || ts), 50);
       lastTRef.current = ts;
 
-      // ── Luck timer rotation ──
+      // Luck timer
       luckTimerRef.current += dt;
       if (luckTimerRef.current >= luckDurationRef.current) {
         luckTimerRef.current = 0;
-        const cur = luckRef.current;
-        const wr = getWinrate();
+        const cur = luckRef.current; const wr = getWinrate();
         if (cur === "HOKI") { luckRef.current = "NORMAL"; luckDurationRef.current = (7 + Math.random()*8) * 60_000; }
         else if (cur === "NORMAL") {
           if (wr > 0.60) { luckRef.current = Math.random() < 0.55 ? "SIAL" : "NORMAL"; }
@@ -471,14 +577,13 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
         } else { luckRef.current = "NORMAL"; luckDurationRef.current = (6 + Math.random()*9) * 60_000; }
       }
 
-      // ── Auto bubble spawner ──
+      // Bubble auto-spawn
       if (stateRef.current.status === "playing") {
         bubbleSpawnTimerRef.current -= dt;
         if (bubbleSpawnTimerRef.current <= 0) {
           const luck = luckRef.current;
           const baseInterval = isJackpot ? 900 : luck === "HOKI" ? 2200 : luck === "SIAL" ? 7500 : 4200;
           bubbleSpawnTimerRef.current = baseInterval * (0.75 + Math.random() * 0.5);
-
           const zR = stateRef.current.zoneR;
           const a = Math.random() * Math.PI * 2;
           const r = Math.random() * zR * 0.82;
@@ -486,20 +591,49 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
           if (isJackpot) { val = [5000,8000,10000,15000,20000][Math.floor(Math.random()*5)]; }
           else if (luck === "HOKI") { val = [500,1000,1000,1500,2000][Math.floor(Math.random()*5)]; }
           else { val = [500,500,1000][Math.floor(Math.random()*3)]; }
-
           stateRef.current.bubbles.push({
             id: `bs${Date.now()}${Math.random()}`,
             pos: { x: ZC.x + Math.cos(a)*r, y: ZC.y + Math.sin(a)*r },
-            vel: { x: 0, y: 0 },
-            value: val, r: 8 + Math.floor(val/500),
+            vel: { x: 0, y: 0 }, value: val, r: 8 + Math.floor(val/500),
             life: BUBBLE_LIFE, maxLife: BUBBLE_LIFE,
           });
         }
       }
 
+      const prevAlive = prevAliveRef.current;
+      const prevBubbleCount = prevBubbleCountRef.current;
+
       update(stateRef.current, dt, mouseRef.current, boostRef.current, cashoutRef.current, joystickRef.current, luckRef.current);
       render(canvas, stateRef.current);
 
+      // ── Sound triggers ──
+      const newAlive = stateRef.current.snakes.filter((s) => s.alive).length;
+      if (newAlive < prevAlive) SFX.collision();
+      prevAliveRef.current = newAlive;
+
+      const newBubbleCount = stateRef.current.bubbles.length;
+      const now2 = performance.now();
+      if (newBubbleCount < prevBubbleCount && now2 - lastBubbleSndRef.current > 90) {
+        SFX.bubble(); lastBubbleSndRef.current = now2;
+      }
+      prevBubbleCountRef.current = newBubbleCount;
+
+      const curStatus = stateRef.current.status;
+      if (curStatus !== prevStatusRef.current) {
+        if (curStatus === "win") SFX.win();
+        else if (curStatus === "lose") SFX.lose();
+        prevStatusRef.current = curStatus;
+      }
+
+      const playerNow = stateRef.current.snakes.find((s) => s.isPlayer);
+      const winPct10 = Math.floor((playerNow?.winProgress ?? 0) * 10);
+      if (winPct10 > 0 && winPct10 > prevWinPct10Ref.current) SFX.cashoutTick();
+      prevWinPct10Ref.current = winPct10;
+
+      // Zone warning sound
+      if (playerNow?.alive && (playerNow?.zoneWarning ?? 0) > 0 && Math.random() < 0.008) SFX.zoneWarn();
+
+      // HUD update
       hudT += dt;
       if (hudT > 80) {
         hudT = 0;
@@ -507,7 +641,6 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
         const alive = stateRef.current.snakes.filter((s) => s.alive).length;
         const st = stateRef.current.status;
         const newWinPct = Math.round((p?.winProgress ?? 0)*100);
-
         if (prevWinPctRef.current >= 75 && newWinPct === 0 && st === "playing") {
           setNearMiss(true); setTimeout(() => setNearMiss(false), 2500);
         }
@@ -522,9 +655,19 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
     return () => { cancelAnimationFrame(rafRef.current); window.removeEventListener("resize", resize); window.removeEventListener("mousemove", onMM); };
   }, [isJackpot]);
 
-  useEffect(() => { if (hud.status === "win") { setWinFlash(true); setTimeout(() => setWinFlash(false), 1200); } }, [hud.status]);
+  useEffect(() => {
+    if (hud.status === "win") { setWinFlash(true); setTimeout(() => setWinFlash(false), 1200); }
+    if (hud.status !== "playing") {
+      const won = hud.status === "win";
+      recordWL(won);
+      const earnings = won ? stateRef.current.winEarnings : stateRef.current.snakes.find((s) => s.isPlayer)?.saldo ?? 0;
+      setTimeout(() => onGameEnd({ won, earnings }), 2800);
+    }
+  }, [hud.status, onGameEnd]);
 
   const GG = "rgba(251,191,36,";
+  const cashoutSide = settings.cashout;
+  const joystickSide = settings.joystick;
 
   return (
     <div className="fixed inset-0" style={{ zIndex: 50, background: "#080400" }}>
@@ -535,7 +678,6 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
         @keyframes nearMissIn{0%{opacity:0;transform:translateX(-50%) scale(0.8)}30%{opacity:1;transform:translateX(-50%) scale(1.05)}100%{opacity:0;transform:translateX(-50%) translateY(-24px) scale(0.95)}}
         @keyframes winPulse{0%,100%{transform:scale(1);text-shadow:0 0 30px rgba(251,191,36,0.8)}50%{transform:scale(1.04);text-shadow:0 0 60px rgba(251,191,36,1),0 0 100px rgba(251,191,36,0.6)}}
         @keyframes winGlow{0%,100%{box-shadow:0 0 60px rgba(251,191,36,0.3)}50%{box-shadow:0 0 120px rgba(251,191,36,0.6),0 0 200px rgba(251,191,36,0.2)}}
-        @keyframes playAgainPulse{0%,100%{box-shadow:0 0 20px rgba(251,191,36,0.4)}50%{box-shadow:0 0 40px rgba(251,191,36,0.8),0 0 60px rgba(251,191,36,0.3)}}
         @keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
         @keyframes jackpotPulse{0%,100%{opacity:1}50%{opacity:0.6}}
       `}</style>
@@ -549,155 +691,114 @@ export default function GameArena({ username, playerColor, betAmount, playerSald
         </div>
       )}
 
-      {/* Jackpot indicator */}
-      {isJackpot && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none" style={{ zIndex: 11 }}>
-          <div className="rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest flex items-center gap-2"
-            style={{ background: "rgba(251,191,36,0.15)", border: "1.5px solid rgba(251,191,36,0.7)", color: GOLD, boxShadow: "0 0 20px rgba(251,191,36,0.5)", animation: "jackpotPulse 0.8s ease-in-out infinite" }}>
-            🔥 JACKPOT MOMENT!
+      {/* HUD */}
+      {hud.status === "playing" && (
+        <>
+          {/* Top bar */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-3 pointer-events-none" style={{ zIndex: 13 }}>
+            <div className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${GG}0.2)`, color: "#fbbf24", backdropFilter: "blur(6px)" }}>
+              👥 {hud.alive}
+            </div>
+            <div className="px-4 py-1.5 rounded-xl font-black text-sm" style={{ background: "rgba(0,0,0,0.65)", border: `1px solid ${GG}0.3)`, color: "#fbbf24", textShadow: `0 0 12px ${GG}0.6)`, backdropFilter: "blur(6px)" }}>
+              Rp{hud.saldo.toLocaleString("id-ID")}
+            </div>
+            {isJackpot && (
+              <div className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "rgba(120,60,0,0.9)", border: "1px solid rgba(251,191,36,0.6)", color: "#fbbf24", animation: "jackpotPulse 0.8s ease-in-out infinite" }}>
+                🔥 JACKPOT
+              </div>
+            )}
           </div>
-        </div>
+
+          {/* Cashout progress bar */}
+          {hud.winPct > 0 && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-none" style={{ zIndex: 13, width: 200 }}>
+              <div className="rounded-full overflow-hidden" style={{ height: 8, background: "rgba(0,0,0,0.5)", border: `1px solid ${GG}0.2)` }}>
+                <div style={{ width: `${hud.winPct}%`, height: "100%", background: hud.winPct > 90 ? "#fff" : "#fbbf24", boxShadow: `0 0 10px ${hud.winPct > 90 ? "#ffffff" : "#fbbf2499"}`, transition: "width 0.1s linear" }} />
+              </div>
+              <p className="text-center text-xs font-bold mt-1" style={{ color: hud.winPct > 90 ? "#fff" : "#fbbf24" }}>{hud.winPct}%</p>
+            </div>
+          )}
+
+          {/* Joystick */}
+          <Joystick onDir={setJoystick} side={joystickSide} />
+
+          {/* Boost button */}
+          <button
+            className="absolute"
+            style={{ [joystickSide === "left" ? "left" : "right"]: 160, bottom: 40, width: 64, height: 64, borderRadius: "50%", background: boosting ? "rgba(251,191,36,0.35)" : "rgba(0,0,0,0.5)", border: `2px solid ${GG}${boosting ? "0.7" : "0.3"})`, color: "#fbbf24", fontSize: 24, touchAction: "none", zIndex: 12, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: boosting ? `0 0 20px ${GG}0.6)` : "none", transition: "all 0.15s" }}
+            onTouchStart={(e) => { e.preventDefault(); setBoost(true); }}
+            onTouchEnd={() => setBoost(false)}
+            onMouseDown={() => setBoost(true)}
+            onMouseUp={() => setBoost(false)}
+          >⚡</button>
+
+          {/* Cashout button */}
+          <button
+            className="absolute"
+            style={{
+              [cashoutSide === "right" ? "right" : "left"]: 28, bottom: 28,
+              width: 108, height: 108, borderRadius: "50%",
+              background: cashoutHeld ? `linear-gradient(135deg, rgba(217,119,6,0.8), rgba(251,191,36,0.8))` : "rgba(0,0,0,0.5)",
+              border: `2.5px solid ${GG}${cashoutHeld ? "0.9" : "0.35"})`,
+              color: cashoutHeld ? "#1a0e00" : "#fbbf24",
+              fontWeight: 900, fontSize: 13, letterSpacing: "0.08em",
+              touchAction: "none", zIndex: 12,
+              boxShadow: cashoutHeld ? `0 0 30px ${GG}0.8), 0 0 60px ${GG}0.3)` : "none",
+              transition: "all 0.15s",
+            }}
+            onTouchStart={(e) => { e.preventDefault(); setCashout(true); }}
+            onTouchEnd={() => setCashout(false)}
+            onMouseDown={() => setCashout(true)}
+            onMouseUp={() => setCashout(false)}
+          >CASHOUT</button>
+        </>
       )}
 
-      {/* HUD top-left */}
-      <div className="absolute top-4 left-4 flex flex-col gap-2" style={{ zIndex: 10 }}>
-        <div className="rounded-xl px-4 py-2.5 text-sm font-bold flex items-center gap-3"
-          style={{ background: "rgba(0,0,0,0.7)", border: `1px solid ${GG}0.25)`, color: GOLD }}>
-          <div className="flex flex-col gap-0.5">
-            <span style={{ color: "#7a6030", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.12em" }}>Saldo Game</span>
-            <span style={{ textShadow: `0 0 10px ${GG}0.6)`, fontSize: 15 }}>
-              {hud.saldo >= 1000000 ? `Rp${(hud.saldo/1000000).toFixed(1)}jt` : hud.saldo >= 1000 ? `Rp${(hud.saldo/1000).toFixed(0)}rb` : `Rp${hud.saldo}`}
-            </span>
-          </div>
-        </div>
-        <div className="rounded-xl px-4 py-2 text-xs font-bold flex items-center gap-2"
-          style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(255,255,255,0.08)", color: "#ccc" }}>
-          <div className="w-2 h-2 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />
-          {hud.alive} pemain tersisa
-        </div>
-      </div>
-
-      {/* Cashout progress hint */}
-      {hud.winPct > 0 && !isJackpot && (
-        <div className="absolute left-1/2 -translate-x-1/2" style={{ top: 16, zIndex: 10 }}>
-          <div className="rounded-xl px-4 py-2 text-xs font-bold flex items-center gap-2"
-            style={{ background: "rgba(0,0,0,0.75)", border: `1px solid ${GG}${hud.winPct > 80 ? "0.7" : "0.25"})`, color: GOLD, boxShadow: hud.winPct > 80 ? `0 0 18px ${GG}0.45)` : "none" }}>
-            <span style={{ color: "#7a6030", fontSize: 9, textTransform: "uppercase" }}>Cashout</span>
-            <span style={{ fontSize: 15 }}>{hud.winPct}%</span>
-            {hud.winPct > 80 && <span style={{ fontSize: 10, color: "#fff" }}>Hampir! ✨</span>}
-          </div>
-        </div>
-      )}
-
-      <Joystick onDir={setJoystick} />
-
-      {/* Right controls */}
-      <div className="absolute flex flex-col gap-3" style={{ right: 20, bottom: 28, zIndex: 12, alignItems: "center" }}>
-        <button className="w-24 h-24 rounded-full flex flex-col items-center justify-center font-black text-xs uppercase tracking-wide select-none"
-          style={{ background: cashoutHeld ? `radial-gradient(circle,${GG}0.35) 0%,rgba(0,0,0,0.75) 80%)` : "rgba(0,0,0,0.7)", border: `2px solid ${GG}${cashoutHeld ? "0.85" : "0.3"})`, color: cashoutHeld ? GOLD : "rgba(251,191,36,0.55)", boxShadow: cashoutHeld ? `0 0 28px ${GG}0.6),inset 0 0 16px ${GG}0.12)` : `0 0 10px ${GG}0.12)`, touchAction: "none", transition: "all 0.12s ease" }}
-          onMouseDown={() => setCashout(true)} onMouseUp={() => setCashout(false)} onMouseLeave={() => setCashout(false)}
-          onTouchStart={(e) => { e.preventDefault(); setCashout(true); }} onTouchEnd={() => setCashout(false)} onTouchCancel={() => setCashout(false)}>
-          <span style={{ fontSize: 22 }}>💰</span>
-          <span style={{ fontSize: 9, lineHeight: 1.3, textAlign: "center" }}>Tahan<br />Cashout</span>
-        </button>
-        <button className="w-16 h-16 rounded-full flex flex-col items-center justify-center font-black text-xs uppercase select-none"
-          style={{ background: boosting ? `linear-gradient(135deg,#d97706,#fbbf24)` : "rgba(0,0,0,0.65)", border: `2px solid ${GG}${boosting ? "0.9" : "0.28"})`, color: boosting ? "#1a0e00" : GOLD, boxShadow: boosting ? `0 0 26px ${GG}0.65)` : `0 0 8px ${GG}0.15)`, touchAction: "none", transition: "all 0.1s ease" }}
-          onMouseDown={() => setBoost(true)} onMouseUp={() => setBoost(false)} onMouseLeave={() => setBoost(false)}
-          onTouchStart={(e) => { e.preventDefault(); setBoost(true); }} onTouchEnd={() => setBoost(false)} onTouchCancel={() => setBoost(false)}>
-          <span style={{ fontSize: 18 }}>⚡</span>
-          <span style={{ fontSize: 9 }}>Boost</span>
-        </button>
-      </div>
-
-      {cashoutHeld && !boosting && (
-        <div className="absolute font-bold text-xs text-center" style={{ right: 24, bottom: 170, zIndex: 12, color: GOLD, textShadow: `0 0 10px ${GG}0.8)` }}>Jangan gerak!</div>
-      )}
-      {boosting && cashoutHeld && (
-        <div className="absolute font-bold text-xs text-center" style={{ right: 18, bottom: 170, zIndex: 12, color: "#f87171" }}>Cashout<br />reset!</div>
-      )}
-
-      {hud.status === "win" && (
-        <EndScreen won earnings={stateRef.current.winEarnings} loseReason=""
-          onClose={() => onGameEnd({ won: true, earnings: stateRef.current.winEarnings })} />
-      )}
-      {hud.status === "lose" && (
-        <EndScreen won={false} earnings={stateRef.current.snakes.find((s) => s.isPlayer)?.saldo ?? 0}
+      {/* End screen */}
+      {hud.status !== "playing" && (
+        <EndScreen
+          won={hud.status === "win"}
+          earnings={hud.status === "win" ? stateRef.current.winEarnings : stateRef.current.snakes.find((s) => s.isPlayer)?.saldo ?? 0}
           loseReason={stateRef.current.loseReason}
-          onClose={() => onGameEnd({ won: false, earnings: stateRef.current.snakes.find((s) => s.isPlayer)?.saldo ?? 0 })} />
+        />
       )}
     </div>
   );
 }
 
-// ── EndScreen ─────────────────────────────────────────────────────────────────
-function EndScreen({ won, earnings, loseReason, onClose }: { won: boolean; earnings: number; loseReason: string; onClose: () => void }) {
+// ── End Screen ────────────────────────────────────────────────────────────────
+function EndScreen({ won, earnings, loseReason }: { won: boolean; earnings: number; loseReason: string }) {
   const GG = "rgba(251,191,36,";
-  const [showPlayAgain, setShowPlayAgain] = useState(false);
-
-  useEffect(() => {
-    recordWL(won); // Record result for winrate tracking
-    const t = setTimeout(() => setShowPlayAgain(true), 1000);
-    return () => clearTimeout(t);
-  }, [won]);
-
   return (
-    <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.88)", zIndex: 20, backdropFilter: "blur(12px)" }}>
-      <div className="flex flex-col items-center gap-5 rounded-2xl p-8 text-center"
-        style={{ background: "rgba(13,9,0,0.97)", border: `1.5px solid ${won ? GG+"0.45)" : "rgba(239,68,68,0.4)"}`, animation: won ? "winGlow 2s ease-in-out infinite" : "fadeInUp 0.4s ease-out", minWidth: 290, maxWidth: 340 }}>
-        {won ? (
-          <>
-            <div style={{ fontSize: "4rem", filter: "drop-shadow(0 0 20px rgba(251,191,36,0.8))" }}>🏆</div>
-            <div>
-              <h2 className="font-black text-4xl uppercase tracking-widest" style={{ color: GOLD, animation: "winPulse 1.2s ease-in-out infinite" }}>
-                KAMU MENANG!
-              </h2>
-              <p style={{ color: "#f59e0b", fontSize: 12, marginTop: 4, letterSpacing: "0.12em" }}>mantap! gas lagi 🔥</p>
-            </div>
-            <div className="rounded-2xl px-8 py-4 w-full" style={{ background: `${GG}0.1)`, border: `1px solid ${GG}0.3)` }}>
-              <p style={{ color: "#7a6030", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Total Kemenangan</p>
-              <p className="font-black text-3xl" style={{ color: GOLD, textShadow: `0 0 20px ${GG}0.8)` }}>
-                +Rp{earnings.toLocaleString("id-ID")}
-              </p>
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: "3.5rem" }}>💀</div>
-            <div>
-              <h2 className="font-black text-3xl uppercase tracking-widest" style={{ color: "#f87171", textShadow: "0 0 24px rgba(239,68,68,0.7)" }}>
-                Yah kalah 😅
-              </h2>
-              <p style={{ color: "#9ca3af", fontSize: 12, marginTop: 4 }}>coba lagi, bisa kok!</p>
-            </div>
-            {loseReason && (
-              <div className="rounded-xl px-4 py-3 w-full" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
-                <p style={{ color: "#7a6030", fontSize: 9, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 4 }}>Kenapa kalah?</p>
-                <p style={{ color: "#fca5a5", fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{loseReason}</p>
-              </div>
-            )}
-            <div className="flex flex-col gap-1">
-              <p style={{ color: "#7a6030", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>Bubble Terkumpul</p>
-              <p className="font-black text-2xl" style={{ color: "#f87171" }}>Rp{earnings.toLocaleString("id-ID")}</p>
-            </div>
-          </>
+    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(14px)", zIndex: 20, animation: "fadeInUp 0.6s ease-out" }}>
+      <div className="text-center px-6 max-w-sm w-full">
+        <div style={{ fontSize: "4rem", lineHeight: 1, marginBottom: 12 }}>{won ? "🏆" : "💀"}</div>
+        <h2
+          className="font-black text-4xl mb-2"
+          style={{ color: won ? "#fbbf24" : "#f87171", textShadow: won ? `0 0 30px ${GG}0.9)` : "0 0 30px rgba(239,68,68,0.9)", animation: won ? "winPulse 1.5s ease-in-out infinite" : "none" }}
+        >
+          {won ? "MENANG!" : "KALAH!"}
+        </h2>
+        <p className="text-sm mb-1" style={{ color: won ? "#a38020" : "#7a3030" }}>
+          {won ? "Kamu berhasil cashout!" : "Kamu tereliminasi"}
+        </p>
+        {!won && loseReason && (
+          <p className="text-xs mb-3 px-4 py-2 rounded-xl" style={{ color: "#f87171", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+            {loseReason}
+          </p>
         )}
-
-        {showPlayAgain && (
-          <button onClick={onClose} className="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-base"
-            style={{
-              background: won ? `linear-gradient(135deg,#d97706,#fbbf24)` : `rgba(239,68,68,0.18)`,
-              color: won ? "#1a0e00" : "#fca5a5",
-              border: won ? "none" : "1.5px solid rgba(239,68,68,0.5)",
-              animation: "playAgainPulse 1.4s ease-in-out infinite",
-            }}>
-            {won ? "▶ Main Lagi!" : "🔄 Coba Lagi!"}
-          </button>
-        )}
-
-        <button onClick={onClose} className="text-xs font-semibold"
-          style={{ color: "#7a6030", textDecoration: "underline", textUnderlineOffset: 3 }}>
-          Kembali ke Lobby
-        </button>
+        <div
+          className="rounded-2xl px-6 py-4 mb-2 mx-auto"
+          style={{ background: won ? `${GG}0.08)` : "rgba(239,68,68,0.05)", border: won ? `1.5px solid ${GG}0.4)` : "1.5px solid rgba(239,68,68,0.25)", animation: won ? "winGlow 2s ease-in-out infinite" : "none", maxWidth: 240 }}
+        >
+          <p className="text-xs uppercase tracking-widest mb-1" style={{ color: won ? "#a38020" : "#7a3030" }}>
+            {won ? "Total Kemenangan" : "Bubble Terkumpul"}
+          </p>
+          <p className="font-black text-3xl" style={{ color: won ? "#fbbf24" : "#f87171", textShadow: won ? `0 0 20px ${GG}0.7)` : "0 0 20px rgba(239,68,68,0.7)" }}>
+            {won ? "+" : ""}Rp{earnings.toLocaleString("id-ID")}
+          </p>
+        </div>
+        <p className="text-xs mt-4" style={{ color: "#4a3820" }}>Kembali ke menu utama...</p>
       </div>
     </div>
   );

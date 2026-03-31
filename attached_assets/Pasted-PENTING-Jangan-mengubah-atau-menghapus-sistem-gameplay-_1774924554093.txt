@@ -1,0 +1,147 @@
+PENTING:
+- Jangan mengubah atau menghapus sistem, gameplay, atau visual yang sudah ada.
+- Hanya tambahkan dan perbaiki sesuai poin di bawah ini.
+
+========================================
+SISTEM JUMLAH PLAYER AKTIF
+========================================
+- Tampilkan jumlah player aktif antara 40–150 (acak).
+- Angka berubah secara berkala agar terlihat natural.
+- Jangan terlihat statis atau terlalu konsisten.
+
+========================================
+SISTEM TOTAL KEMENANGAN GLOBAL
+========================================
+- Tambahkan tampilan “Total Kemenangan Global”.
+- Nilai awal: 100.000
+- Update setiap 5 menit otomatis.
+- Kenaikan random (contoh: +350.000, +450.000, dll).
+- Maksimal dalam 24 jam: 5.000.000
+- Pergerakan harus terlihat natural dan bertahap.
+
+========================================
+HAPUS NOTIFIKASI
+========================================
+- Hapus notifikasi popup seperti:
+  - Kenaikan ranking
+  - Reward setelah login
+
+========================================
+FITUR TARIK DANA (UI SAJA)
+========================================
+- Saat user klik "Tarik Dana":
+  Tampilkan:
+  - Nama pemilik rekening
+  - Nomor rekening
+  (Tidak bisa diubah setelah daftar)
+
+- User menginput nominal penarikan
+- Tombol “Kirim”
+
+- Setelah klik kirim:
+  Tampilkan alert:
+  "Penarikan sedang diproses, harap tunggu 3–5 menit"
+
+========================================
+FITUR HISTORY AKUN
+========================================
+- Tambahkan halaman riwayat akun
+- Catat:
+  - Deposit
+  - Penarikan
+- Setiap data berisi:
+  - Jenis transaksi
+  - Nominal
+  - Waktu
+
+========================================
+PERBAIKAN LIST PLAYER SAAT MASUK GAME
+========================================
+- Saat masuk game:
+  - Tampilkan loading / counting
+
+- Player dalam room:
+  - Total 10 player
+  - Masuk bertahap selama 5 detik
+
+- Setiap player:
+  - Nama random
+  - Saldo random
+
+PENTING (PERBAIKAN):
+- Setelah muncul:
+  - Saldo tidak boleh berubah-ubah
+  - Tidak boleh flicker atau update ulang
+  - Harus tetap (misal 50.000 ya tetap 50.000)
+
+========================================
+PERBAIKAN SISTEM TABRAKAN & BUBBLE
+========================================
+- Saat cacing mati:
+  - Total bubble harus sesuai nilai aslinya
+
+Contoh:
+- Nilai: 10.000
+- Dipecah jadi beberapa bubble (misal 5)
+- Total tetap 10.000
+
+- Tambahkan efek:
+  - Animasi meledak
+  - Bubble keluar dengan smooth
+
+========================================
+PENINGKATAN GAMEPLAY
+========================================
+- Percepat pergerakan cacing
+- Gameplay dibuat lebih cepat dan intens
+- Tetap smooth dan responsif
+
+========================================
+ZONA LINGKARAN MERAH
+========================================
+- Tambahkan zona lingkaran merah (battle zone)
+- Jika keluar dari lingkaran → langsung mati
+
+- Pergerakan:
+  - Menyusut dalam 1 menit
+  - Ukuran disesuaikan untuk 10 player
+  - Animasi smooth
+
+========================================
+SISTEM SOUND
+========================================
+Tambahkan suara untuk:
+- Masuk game
+- Waiting / lobby
+- Saat gameplay
+- Saat tabrakan / mati
+- Menang
+- Kalah
+
+- Suara harus halus dan tidak mengganggu
+
+========================================
+SMOOTHNESS (SANGAT PENTING)
+========================================
+- Game harus sangat smooth:
+  - Tidak lag
+  - Tidak patah-patah
+- Semua animasi harus halus
+
+========================================
+FITUR SETTING UI
+========================================
+- Tambahkan menu pengaturan di profil
+
+User bisa:
+- Mengatur posisi analog/control
+- Mengatur posisi tombol (contoh: tombol cashout)
+
+- UI bisa dipindah sesuai keinginan user
+
+========================================
+CATATAN AKHIR
+========================================
+- Jangan ubah sistem lain yang sudah ada
+- Hanya fokus ke penambahan & perbaikan ini
+- Tetap jaga feel game cinematic dan smooth

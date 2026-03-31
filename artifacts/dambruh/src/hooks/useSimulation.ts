@@ -85,20 +85,22 @@ function getBusyHours(): BusyHours {
 }
 
 // ─── Global Winnings persistence ──────────────────────────────────────────────
-const GW_DAY_KEY = "dambruh_gw_day";
-const GW_VAL_KEY = "dambruh_gw_val";
-const MAX_DAILY_GW = 10_000_000;
+const GW_DAY_KEY   = "dambruh_gw_day";
+const GW_VAL_KEY   = "dambruh_gw_val";
+const GW_LAST_KEY  = "dambruh_gw_last"; // timestamp of last big update
+const MAX_DAILY_GW = 5_000_000;
+const GW_START     = 100_000;
 
 function loadGlobalWinnings(): number {
   const savedDay = localStorage.getItem(GW_DAY_KEY);
   const today = todayStr();
   if (savedDay !== today) {
-    // New day OR first run → reset to 0
     localStorage.setItem(GW_DAY_KEY, today);
-    localStorage.setItem(GW_VAL_KEY, "0");
-    return 0;
+    localStorage.setItem(GW_VAL_KEY, String(GW_START));
+    localStorage.setItem(GW_LAST_KEY, String(Date.now()));
+    return GW_START;
   }
-  return parseInt(localStorage.getItem(GW_VAL_KEY) ?? "0", 10) || 0;
+  return parseInt(localStorage.getItem(GW_VAL_KEY) ?? String(GW_START), 10) || GW_START;
 }
 
 function saveGlobalWinnings(v: number) {
@@ -107,9 +109,9 @@ function saveGlobalWinnings(v: number) {
 
 // ─── Main hook ────────────────────────────────────────────────────────────────
 export function useSimulation(userSaldo: number) {
-  // Active players
+  // Active players (40–150)
   const [activePlayers, setActivePlayers] = useState<number>(() => {
-    return clamp(80 + Math.floor(Math.random() * 120), 80, 300);
+    return clamp(40 + Math.floor(Math.random() * 111), 40, 150);
   });
   const activeRef = useRef(activePlayers);
 
@@ -132,77 +134,60 @@ export function useSimulation(userSaldo: number) {
   useEffect(() => { gwRef.current = globalWinnings; }, [globalWinnings]);
   useEffect(() => { playersRef.current = players; }, [players]);
 
-  // ── Active players tick ──────────────────────────────────────────────────
+  // ── Active players tick (40–150) ─────────────────────────────────────────
   useEffect(() => {
     const tick = () => {
-      const hour = new Date().getHours();
-      const { busy, vbusy } = busyHoursRef.current;
-      const isVBusy = vbusy.includes(hour);
-      const isBusy = busy.includes(hour);
-
-      let targetMin = 80;
-      let targetMax = 200;
-      if (isVBusy) { targetMin = 260; targetMax = 300; }
-      else if (isBusy) { targetMin = 200; targetMax = 280; }
-
       setActivePlayers((prev) => {
-        const target = targetMin + Math.floor(Math.random() * (targetMax - targetMin));
+        const target = 40 + Math.floor(Math.random() * 111);
         const diff = target - prev;
-        const step = Math.sign(diff) * Math.min(Math.abs(diff), 3 + Math.floor(Math.random() * 5));
-        return clamp(prev + step, 80, 300);
+        const step = Math.sign(diff) * Math.min(Math.abs(diff), 2 + Math.floor(Math.random() * 4));
+        return clamp(prev + step, 40, 150);
       });
     };
     const id = setInterval(tick, 4000 + Math.random() * 3000);
     return () => clearInterval(id);
   }, []);
 
-  // ── Global winnings tick ─────────────────────────────────────────────────
+  // ── Global winnings tick (big jump every 5 min + small cosmetic ticks) ───
   useEffect(() => {
-    const tick = () => {
+    // Smooth cosmetic micro-ticks (small, every 4-8s)
+    let microId: ReturnType<typeof setTimeout>;
+    const microTick = () => {
+      const current = gwRef.current;
+      if (current < MAX_DAILY_GW) {
+        const microInc = r1k(1_000 + Math.random() * 5_000);
+        setGlobalWinnings((prev) => {
+          const next = Math.min(MAX_DAILY_GW, prev + microInc);
+          saveGlobalWinnings(next);
+          return next;
+        });
+      }
+      microId = setTimeout(microTick, 4000 + Math.random() * 4000);
+    };
+    microId = setTimeout(microTick, 4000 + Math.random() * 4000);
+
+    // Big update every 5 minutes (+300k–500k)
+    const bigTick = () => {
       const now = new Date();
-      // Daily reset at 00:00
-      if (now.getHours() === 0 && now.getMinutes() === 0 && now.getSeconds() < 4) {
-        setGlobalWinnings(0);
+      if (now.getHours() === 0 && now.getMinutes() === 0 && now.getSeconds() < 10) {
+        setGlobalWinnings(GW_START);
         localStorage.setItem(GW_DAY_KEY, todayStr());
-        localStorage.setItem(GW_VAL_KEY, "0");
+        saveGlobalWinnings(GW_START);
         return;
       }
-
-      const ap = activeRef.current;
       const current = gwRef.current;
-
-      // Slow down near cap
       if (current >= MAX_DAILY_GW) return;
-
-      let inc: number;
-      if (current >= 8_000_000) {
-        inc = r1k(3_000 + Math.random() * 7_000);
-      } else if (ap <= 120) {
-        inc = r1k(3_000 + Math.random() * 12_000);
-      } else if (ap <= 200) {
-        inc = r1k(10_000 + Math.random() * 30_000);
-      } else {
-        inc = r1k(30_000 + Math.random() * 70_000);
-      }
-
+      const inc = r1k(300_000 + Math.random() * 200_000);
       setGlobalWinnings((prev) => {
         const next = Math.min(MAX_DAILY_GW, prev + inc);
         saveGlobalWinnings(next);
+        localStorage.setItem(GW_LAST_KEY, String(Date.now()));
         return next;
       });
     };
+    const bigId = setInterval(bigTick, 5 * 60_000);
 
-    // Tick every 1-3 seconds (randomized start)
-    let timeoutId: ReturnType<typeof setTimeout>;
-    const schedule = () => {
-      const delay = 1000 + Math.random() * 2000;
-      timeoutId = setTimeout(() => {
-        tick();
-        schedule();
-      }, delay);
-    };
-    schedule();
-    return () => clearTimeout(timeoutId);
+    return () => { clearTimeout(microId); clearInterval(bigId); };
   }, []);
 
   // ── Leaderboard update + drama system ───────────────────────────────────

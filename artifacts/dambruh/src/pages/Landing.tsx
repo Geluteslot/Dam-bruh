@@ -10,6 +10,7 @@ import RegisterModal from "@/components/modals/RegisterModal";
 import ForgotPasswordModal from "@/components/modals/ForgotPasswordModal";
 import ProfileModal from "@/components/modals/ProfileModal";
 import TransactionModal from "@/components/modals/TransactionModal";
+import WithdrawModal from "@/components/modals/WithdrawModal";
 import CountdownScreen from "@/components/game/CountdownScreen";
 import GameArena from "@/components/game/GameArena";
 import Leaderboard from "@/components/Leaderboard";
@@ -30,17 +31,17 @@ const GOLD_GLOW = "rgba(251,191,36,";
 type ModalType = "login" | "register" | "forgot" | "profile" | "history" | null;
 type GamePhase = "idle" | "countdown" | "playing";
 
+
 // ── Fake Activity System ───────────────────────────────────────────────────────
 const FA_NAMES = ["Rizky","Fitri","Budi","Andi","Sari","Dewi","Bayu","Nina","Fajar","Wahyu","Agus","Dian","Reza","Putra","Hadi","Bella","Kevin","Lina","Rama","Zahra"];
 const FA_AMOUNTS = [5000,8000,10000,12000,15000,18000,20000,25000,30000];
 function randomFakeActivity(): string {
   const name = FA_NAMES[Math.floor(Math.random() * FA_NAMES.length)];
   const amt = FA_AMOUNTS[Math.floor(Math.random() * FA_AMOUNTS.length)];
-  const type = Math.floor(Math.random() * 5);
+  const type = Math.floor(Math.random() * 4);
   if (type === 0) return `💰 ${name} menang Rp${amt.toLocaleString("id-ID")}!`;
-  if (type === 1) return `📈 ${name} naik ke rank #${1 + Math.floor(Math.random() * 8)}!`;
-  if (type === 2) return `✅ ${name} cashout Rp${amt.toLocaleString("id-ID")}!`;
-  if (type === 3) return `🎮 ${name} masuk game Rp${[3,5,10,20][Math.floor(Math.random()*4)]}rb!`;
+  if (type === 1) return `✅ ${name} cashout Rp${amt.toLocaleString("id-ID")}!`;
+  if (type === 2) return `🎮 ${name} masuk game Rp${[3,5,10,20][Math.floor(Math.random()*4)]}rb!`;
   return `⚡ ${name} dapat bubble +Rp${[500,1000,2000,3000][Math.floor(Math.random()*4)].toLocaleString("id-ID")}!`;
 }
 interface FakeNotif { id: number; text: string; jackpot?: boolean; }
@@ -101,6 +102,7 @@ export default function Landing() {
   const [pendingColorId, setPendingColorId]   = useState(DEFAULT_COLOR_ID);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [modal, setModal]                     = useState<ModalType>(null);
+  const [showWithdraw, setShowWithdraw]       = useState(false);
   const [toast, setToast]                     = useState<{ msg: string; type: "win" | "lose" } | null>(null);
   const [gamePhase, setGamePhase]             = useState<GamePhase>("idle");
   const [fakeNotifs, setFakeNotifs]           = useState<FakeNotif[]>([]);
